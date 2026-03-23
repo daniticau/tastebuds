@@ -1,25 +1,4 @@
-from datetime import datetime
-from uuid import UUID
-
 from pydantic import BaseModel, Field
-
-
-class Place(BaseModel):
-    """Database row for a place."""
-
-    id: UUID
-    canonical_name: str
-    name_normalized: str
-    city: str
-    neighborhood: str | None = None
-    cuisine_tags: list[str] = Field(default_factory=list)
-    positive_count: int = 0
-    negative_count: int = 0
-    neutral_count: int = 0
-    avg_rating: float | None = None
-    last_feedback_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
 
 
 class PlaceRecommendation(BaseModel):
@@ -39,7 +18,6 @@ class SearchResult(BaseModel):
     """Response from search_recommendations."""
 
     recommendations: list[PlaceRecommendation]
-    total_places_in_area: int
     message: str
 
 

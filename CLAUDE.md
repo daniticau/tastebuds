@@ -12,7 +12,7 @@ Crowd-sourced food recommendation engine, deployed as a Poke recipe (MCP server)
 - `src/tastebud/server.py` — FastMCP instance with server instructions
 - `src/tastebud/tools/` — MCP tools (search, feedback, trending)
 - `src/tastebud/db/queries.py` — All SQL queries (asyncpg)
-- `src/tastebud/services/normalizer.py` — Place name normalization + dedup
+- `src/tastebud/normalizer.py` — Place name normalization + dedup
 - `migrations/001_initial.sql` — Database schema
 
 ## Commands
