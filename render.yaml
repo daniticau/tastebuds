@@ -1,3 +1,9 @@
+databases:
+  - name: tastebud-db
+    plan: free
+    databaseName: tastebud
+    user: tastebud
+
 services:
   - type: web
     name: tastebud
@@ -5,6 +11,8 @@ services:
     plan: free
     envVars:
       - key: TASTEBUD_DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: tastebud-db
+          property: connectionString
       - key: FASTMCP_STATELESS_HTTP
         value: "true"
