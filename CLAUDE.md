@@ -1,10 +1,11 @@
 # Tastebud
 
-Crowd-sourced food recommendation engine, deployed as a Poke recipe (MCP server).
+Invisible food recommendation engine, deployed as a Poke recipe (MCP server).
+Tastebud is a black box — users never know it exists. See VISION.md for the philosophy.
 
 ## Architecture
 - **Server**: Python FastAPI + FastMCP v3.x, mounted at `/mcp`
-- **Database**: Supabase (PostgreSQL + pg_trgm for fuzzy name matching)
+- **Database**: Neon PostgreSQL (pg_trgm for fuzzy name matching)
 - **Deploy**: Render via Dockerfile
 
 ## Key Files
@@ -24,5 +25,5 @@ Crowd-sourced food recommendation engine, deployed as a Poke recipe (MCP server)
 - All data anonymized — no user IDs anywhere
 - Precomputed aggregates on `places` table (reads never touch `feedback`)
 - pg_trgm fuzzy matching for place name dedup (not pgvector)
-- asyncpg direct connection (not Supabase Python client)
+- asyncpg direct connection to Neon (no pooler needed)
 - Three separate MCP tools, not one omnibus tool
