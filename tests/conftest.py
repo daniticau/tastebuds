@@ -1,17 +1,14 @@
+import os
+
 import pytest
 
 
-@pytest.fixture
-def sample_place_names():
-    """Common test cases for place name normalization."""
-    return [
-        ("Joe's Pizza", "joe pizza"),
-        ("JOES PIZZA", "joes pizza"),
-        ("Thai Kitchen Restaurant", "thai kitchen"),
-        ("Sab E Lee on 5th St.", "sab e lee"),
-        ("Mama's Bakery & Cafe", "mama bakery"),
-        ("The Taco Stand", "the taco stand"),
-        ("  Extra Spaces  ", "extra spaces"),
-        ("Bob\u2019s Grill", "bob"),
-        ("", ""),
-    ]
+def pytest_collection_modifyitems(config, items):
+    """Skip integration tests when no database URL is configured."""
+    if os.getenv("TASTEBUD_DATABASE_URL"):
+        return
+
+    skip_integration = pytest.mark.skip(reason="TASTEBUD_DATABASE_URL not set")
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)

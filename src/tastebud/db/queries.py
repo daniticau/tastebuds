@@ -8,8 +8,20 @@ from tastebud.db.models import (
     SearchResult,
     TrendingResult,
 )
-from tastebud.services.normalizer import normalize_city, normalize_name
-from tastebud.services.ranking import compute_sentiment_summary
+from tastebud.normalizer import normalize_city, normalize_name
+
+
+def compute_sentiment_summary(positive_pct: float, total: int) -> str:
+    """Return a human-readable sentiment summary."""
+    if total == 0:
+        return "No reviews yet"
+    if positive_pct >= 0.8 and total >= 3:
+        return "Highly recommended"
+    if positive_pct >= 0.6:
+        return "Generally positive"
+    if positive_pct >= 0.4:
+        return "Mixed reviews"
+    return "Not well received"
 
 
 async def search_places(
@@ -46,11 +58,6 @@ async def search_places(
         limit,
     )
 
-    total_row = await pool.fetchval(
-        "SELECT COUNT(*) FROM places WHERE city = $1",
-        city_norm,
-    )
-
     recs = []
     for row in rows:
         total = row["positive_count"] + row["negative_count"] + row["neutral_count"]
@@ -78,7 +85,6 @@ async def search_places(
 
     return SearchResult(
         recommendations=recs,
-        total_places_in_area=total_row or 0,
         message=message,
     )
 
