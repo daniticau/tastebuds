@@ -1,3 +1,4 @@
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,7 +10,7 @@ from tastebuds.server import mcp
 
 
 @asynccontextmanager
-async def db_lifespan(app: FastAPI):
+async def db_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage database connection pool lifecycle."""
     await init_db_pool()
     yield

@@ -17,5 +17,5 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    """Lazy singleton — only validates env vars on first call."""
+    """Lazy singleton; validate env vars only on first call."""
     return Settings()
