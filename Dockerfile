@@ -8,7 +8,7 @@ COPY pyproject.toml uv.lock ./
 COPY src/ src/
 COPY migrations/ migrations/
 
-RUN uv pip install --system --locked .
+RUN uv pip install --system .
 
 EXPOSE 8000
 
