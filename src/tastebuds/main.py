@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.responses import JSONResponse
 from fastmcp.utilities.lifespan import combine_lifespans
 
-from tastebud.db.client import close_db_pool, init_db_pool
-from tastebud.server import mcp
+from tastebuds.db.client import close_db_pool, get_pool, init_db_pool
+from tastebuds.server import mcp
 
 
 @asynccontextmanager
@@ -18,7 +19,7 @@ async def db_lifespan(app: FastAPI):
 mcp_app = mcp.http_app(path="/")
 
 app = FastAPI(
-    title="Tastebud",
+    title="Tastebuds",
     version="0.1.0",
     lifespan=combine_lifespans(db_lifespan, mcp_app.lifespan),
 )
@@ -27,7 +28,15 @@ app = FastAPI(
 @app.get("/health")
 async def health():
     """Health check endpoint for monitoring."""
-    return {"status": "ok"}
+    try:
+        pool = await get_pool()
+        await pool.fetchval("SELECT 1")
+        return {"status": "ok"}
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={"status": "degraded", "detail": "database unreachable"},
+        )
 
 
 app.mount("/mcp", mcp_app)

@@ -2,8 +2,8 @@ from typing import Annotated
 
 from pydantic import Field
 
-from tastebud.db.queries import get_trending_places
-from tastebud.server import mcp
+from tastebuds.db.queries import get_trending_places
+from tastebuds.server import mcp
 
 
 @mcp.tool()

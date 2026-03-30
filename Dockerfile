@@ -4,14 +4,17 @@ WORKDIR /app
 
 RUN pip install uv
 
-COPY pyproject.toml .
+COPY pyproject.toml uv.lock ./
 COPY src/ src/
 COPY migrations/ migrations/
 
-RUN uv pip install --system .
+RUN uv pip install --system --locked .
 
 EXPOSE 8000
 
 ENV FASTMCP_STATELESS_HTTP=true
 
-CMD ["uvicorn", "tastebud.main:app", "--host", "0.0.0.0", "--port", "8000"]
+RUN adduser --disabled-password --gecos "" appuser
+USER appuser
+
+CMD ["uvicorn", "tastebuds.main:app", "--host", "0.0.0.0", "--port", "8000"]

@@ -1,14 +1,14 @@
 from uuid import UUID
 
-from tastebud.config import get_settings
-from tastebud.db.client import get_pool
-from tastebud.db.models import (
+from tastebuds.config import get_settings
+from tastebuds.db.client import get_pool
+from tastebuds.db.models import (
     FeedbackResult,
     PlaceRecommendation,
     SearchResult,
     TrendingResult,
 )
-from tastebud.normalizer import normalize_city, normalize_name
+from tastebuds.normalizer import normalize_city, normalize_name
 
 
 def compute_sentiment_summary(positive_pct: float, total: int) -> str:
@@ -29,24 +29,63 @@ async def search_places(
     cuisine: str | None = None,
     neighborhood: str | None = None,
     limit: int = 5,
+    taste_id: str | None = None,
 ) -> SearchResult:
-    """Search for places ranked by sentiment quality, volume, and recency."""
+    """Search for places ranked by sentiment quality, volume, recency, and taste affinity."""
     pool = await get_pool()
+    settings = get_settings()
     city_norm = normalize_city(city)
-    halflife_seconds = get_settings().recency_halflife_days * 86400
+    halflife_seconds = settings.recency_halflife_days * 86400
+
+    # Escape ILIKE wildcards to prevent pattern injection
+    if neighborhood:
+        neighborhood = neighborhood.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
     rows = await pool.fetch(
         """
-        SELECT *,
-            (COALESCE(avg_rating, 0)
-             * ln(GREATEST(positive_count + negative_count + neutral_count, 2))
-             * (1.0 / (1.0 + EXTRACT(EPOCH FROM (now() - COALESCE(last_feedback_at, created_at))) / $4))
-            ) AS score
-        FROM places
-        WHERE city = $1
-          AND ($2::TEXT IS NULL OR cuisine_tags @> ARRAY[$2])
-          AND ($3::TEXT IS NULL OR neighborhood ILIKE $3)
-          AND (positive_count + negative_count + neutral_count) >= $5
+        WITH taste_sim AS (
+            -- How similar is the requesting user to every other user?
+            -- Agreement rate minus 0.5 so range is [-0.5, +0.5]
+            SELECT
+                f2.taste_id,
+                (COUNT(*) FILTER (WHERE f1.sentiment = f2.sentiment)::float
+                 / COUNT(*)) - 0.5 AS affinity
+            FROM feedback f1
+            JOIN feedback f2
+                ON f1.place_id = f2.place_id
+                AND f1.taste_id != f2.taste_id
+                AND f2.taste_id IS NOT NULL
+            WHERE f1.taste_id = $7
+              AND $7 IS NOT NULL
+            GROUP BY f2.taste_id
+            HAVING COUNT(*) >= 2
+        ),
+        place_boost AS (
+            -- For each place, compute affinity-weighted sentiment from similar users
+            SELECT
+                f.place_id,
+                GREATEST(-0.3, LEAST(0.5,
+                    SUM(ts.affinity * CASE f.sentiment
+                        WHEN 'positive' THEN 1.0
+                        WHEN 'neutral' THEN 0.0
+                        ELSE -1.0
+                    END) / GREATEST(COUNT(*), 1)
+                )) AS boost
+            FROM feedback f
+            JOIN taste_sim ts ON f.taste_id = ts.taste_id
+            GROUP BY f.place_id
+        )
+        SELECT p.*,
+            (COALESCE(p.avg_rating, 0)
+             * ln(GREATEST(p.positive_count + p.negative_count + p.neutral_count, 2))
+             * (1.0 / (1.0 + EXTRACT(EPOCH FROM (now() - COALESCE(p.last_feedback_at, p.created_at))) / $4))
+            ) * (1.0 + COALESCE(pb.boost, 0)) AS score
+        FROM places p
+        LEFT JOIN place_boost pb ON p.id = pb.place_id
+        WHERE p.city = $1
+          AND ($2::TEXT IS NULL OR p.cuisine_tags @> ARRAY[$2])
+          AND ($3::TEXT IS NULL OR p.neighborhood ILIKE $3)
+          AND (p.positive_count + p.negative_count + p.neutral_count) >= $5
         ORDER BY score DESC
         LIMIT $6
         """,
@@ -54,8 +93,9 @@ async def search_places(
         cuisine.lower() if cuisine else None,
         neighborhood,
         float(halflife_seconds),
-        get_settings().min_reviews_for_ranking,
+        settings.min_reviews_for_ranking,
         limit,
+        taste_id,
     )
 
     recs = []
@@ -74,12 +114,12 @@ async def search_places(
         ))
 
     if recs:
-        message = f"Found {len(recs)} crowd-sourced recommendations in {city}."
+        message = f"Found {len(recs)} recommendations in {city}."
     else:
         message = (
-            f"No crowd-sourced recommendations yet for "
+            f"No recommendations yet for "
             f"{'that cuisine in ' if cuisine else ''}{city}. "
-            "You're among the first! Use your own knowledge to recommend a place, "
+            "Use your own knowledge to recommend a place, "
             "and collect feedback to help future users."
         )
 
@@ -148,6 +188,7 @@ async def insert_feedback(
     sentiment: str,
     comment: str | None = None,
     visit_context: str | None = None,
+    taste_id: str | None = None,
 ) -> FeedbackResult:
     """Insert feedback and atomically update place aggregates."""
     pool = await get_pool()
@@ -156,13 +197,14 @@ async def insert_feedback(
         async with conn.transaction():
             await conn.execute(
                 """
-                INSERT INTO feedback (place_id, sentiment, comment, visit_context)
-                VALUES ($1, $2, $3, $4)
+                INSERT INTO feedback (place_id, sentiment, comment, visit_context, taste_id)
+                VALUES ($1, $2, $3, $4, $5)
                 """,
                 place_id,
                 sentiment,
                 comment,
                 visit_context,
+                taste_id,
             )
 
             row = await conn.fetchrow(
@@ -185,6 +227,9 @@ async def insert_feedback(
                 sentiment,
                 place_id,
             )
+
+    if row is None:
+        raise ValueError(f"Place {place_id} not found during feedback update")
 
     return FeedbackResult(
         success=True,
@@ -215,7 +260,7 @@ async def get_trending_places(
         FROM places p
         JOIN feedback f ON f.place_id = p.id
         WHERE p.city = $1
-          AND f.created_at > now() - ($2 || ' days')::INTERVAL
+          AND f.created_at > now() - MAKE_INTERVAL(days := $2)
         GROUP BY p.id
         HAVING COUNT(f.id) >= 2
         ORDER BY COUNT(f.id) * AVG(CASE f.sentiment
@@ -226,7 +271,7 @@ async def get_trending_places(
         LIMIT $3
         """,
         city_norm,
-        str(days),
+        days,
         limit,
     )
 

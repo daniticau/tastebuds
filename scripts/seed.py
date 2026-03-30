@@ -8,8 +8,8 @@ import asyncio
 
 import asyncpg
 
-from tastebud.config import get_settings
-from tastebud.normalizer import normalize_city, normalize_name
+from tastebuds.config import get_settings
+from tastebuds.normalizer import normalize_city, normalize_name
 
 SEED_PLACES = [
     # (name, city, neighborhood, cuisine_tags)

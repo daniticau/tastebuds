@@ -1,7 +1,7 @@
 [project]
-name = "tastebud"
+name = "tastebuds"
 version = "0.1.0"
-description = "Crowd-sourced food recommendations via Poke (MCP server)"
+description = "Crowd-sourced food recommendations MCP server"
 requires-python = ">=3.12"
 dependencies = [
     "fastmcp>=3.0",
@@ -28,4 +28,4 @@ asyncio_mode = "auto"
 markers = ["integration: requires database connection"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/tastebud"]
+packages = ["src/tastebuds"]
