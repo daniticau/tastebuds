@@ -55,8 +55,53 @@ class TestSearch:
         result = await search_places("nonexistent_city_xyz")
         assert result.recommendations == []
 
+    async def test_search_with_partial_neighborhood_match(self, db_pool):
+        tag = uuid.uuid4().hex[:8]
+        city = f"test-neighborhood-city-{tag}"
+        place_name = f"__partial_neighborhood_{tag}"
+        place_id, _ = await find_or_create_place(
+            name=place_name,
+            city=city,
+            neighborhood="North Park",
+            cuisine_tags=["test"],
+        )
+
+        try:
+            await insert_feedback(place_id=place_id, sentiment="positive")
+
+            result = await search_places(city, neighborhood="north")
+
+            assert any(
+                recommendation.name == place_name
+                for recommendation in result.recommendations
+            )
+        finally:
+            await db_pool.execute("DELETE FROM feedback WHERE place_id = $1", place_id)
+            await db_pool.execute("DELETE FROM places WHERE id = $1", place_id)
+
 
 class TestFeedback:
+    async def test_find_or_create_place_reuses_normalized_place(self, db_pool):
+        tag = uuid.uuid4().hex[:8]
+        city = f"test-dedupe-city-{tag}"
+
+        first_place_id, first_name = await find_or_create_place(
+            name="Joe's Pizza",
+            city=city,
+        )
+
+        try:
+            second_place_id, second_name = await find_or_create_place(
+                name="Joe Pizza Restaurant",
+                city=city,
+            )
+
+            assert second_place_id == first_place_id
+            assert second_name == first_name
+        finally:
+            await db_pool.execute("DELETE FROM feedback WHERE place_id = $1", first_place_id)
+            await db_pool.execute("DELETE FROM places WHERE id = $1", first_place_id)
+
     async def test_feedback_round_trip(self, test_place):
         place_id, name = test_place
         result = await insert_feedback(

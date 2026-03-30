@@ -10,6 +10,8 @@ from tastebuds.db.models import (
 )
 from tastebuds.normalizer import normalize_city, normalize_name
 
+_SECONDS_PER_DAY = 86400
+
 
 def compute_sentiment_summary(positive_pct: float, total: int) -> str:
     """Return a human-readable sentiment summary."""
@@ -24,6 +26,58 @@ def compute_sentiment_summary(positive_pct: float, total: int) -> str:
     return "Not well received"
 
 
+def _count_reviews(row: dict) -> int:
+    """Count total reviews represented in an aggregated places row."""
+    return row["positive_count"] + row["negative_count"] + row["neutral_count"]
+
+
+def _build_place_recommendation(row: dict) -> PlaceRecommendation:
+    """Convert a database row into the public recommendation shape."""
+    total_reviews = _count_reviews(row)
+    positive_pct = row["positive_count"] / max(total_reviews, 1)
+
+    return PlaceRecommendation(
+        name=row["canonical_name"],
+        city=row["city"],
+        neighborhood=row["neighborhood"],
+        cuisine_tags=row["cuisine_tags"],
+        sentiment_summary=compute_sentiment_summary(positive_pct, total_reviews),
+        positive_pct=round(positive_pct, 2),
+        total_reviews=total_reviews,
+        last_reviewed=(
+            row["last_feedback_at"].isoformat()
+            if row["last_feedback_at"]
+            else None
+        ),
+    )
+
+
+def _build_ilike_contains_pattern(value: str | None) -> str | None:
+    """Build a safely escaped substring pattern for ILIKE."""
+    if value is None:
+        return None
+
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return f"%{escaped}%"
+
+
+def _build_search_message(
+    recommendations: list[PlaceRecommendation],
+    city: str,
+    cuisine: str | None,
+) -> str:
+    """Build the user-facing message for a search response."""
+    if recommendations:
+        return f"Found {len(recommendations)} recommendations in {city}."
+
+    cuisine_prefix = "that cuisine in " if cuisine else ""
+    return (
+        f"No recommendations yet for {cuisine_prefix}{city}. "
+        "Use your own knowledge to recommend a place, "
+        "and collect feedback to help future users."
+    )
+
+
 async def search_places(
     city: str,
     cuisine: str | None = None,
@@ -35,11 +89,9 @@ async def search_places(
     pool = await get_pool()
     settings = get_settings()
     city_norm = normalize_city(city)
-    halflife_seconds = settings.recency_halflife_days * 86400
-
-    # Escape ILIKE wildcards to prevent pattern injection
-    if neighborhood:
-        neighborhood = neighborhood.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    halflife_seconds = settings.recency_halflife_days * _SECONDS_PER_DAY
+    cuisine_filter = cuisine.lower() if cuisine else None
+    neighborhood_filter = _build_ilike_contains_pattern(neighborhood)
 
     rows = await pool.fetch(
         """
@@ -84,47 +136,25 @@ async def search_places(
         LEFT JOIN place_boost pb ON p.id = pb.place_id
         WHERE p.city = $1
           AND ($2::TEXT IS NULL OR p.cuisine_tags @> ARRAY[$2])
-          AND ($3::TEXT IS NULL OR p.neighborhood ILIKE $3)
+          AND ($3::TEXT IS NULL OR p.neighborhood ILIKE $3 ESCAPE '\')
           AND (p.positive_count + p.negative_count + p.neutral_count) >= $5
         ORDER BY score DESC
         LIMIT $6
         """,
         city_norm,
-        cuisine.lower() if cuisine else None,
-        neighborhood,
+        cuisine_filter,
+        neighborhood_filter,
         float(halflife_seconds),
         settings.min_reviews_for_ranking,
         limit,
         taste_id,
     )
 
-    recs = []
-    for row in rows:
-        total = row["positive_count"] + row["negative_count"] + row["neutral_count"]
-        pct = row["positive_count"] / max(total, 1)
-        recs.append(PlaceRecommendation(
-            name=row["canonical_name"],
-            city=row["city"],
-            neighborhood=row["neighborhood"],
-            cuisine_tags=row["cuisine_tags"],
-            sentiment_summary=compute_sentiment_summary(pct, total),
-            positive_pct=round(pct, 2),
-            total_reviews=total,
-            last_reviewed=row["last_feedback_at"].isoformat() if row["last_feedback_at"] else None,
-        ))
-
-    if recs:
-        message = f"Found {len(recs)} recommendations in {city}."
-    else:
-        message = (
-            f"No recommendations yet for "
-            f"{'that cuisine in ' if cuisine else ''}{city}. "
-            "Use your own knowledge to recommend a place, "
-            "and collect feedback to help future users."
-        )
+    recommendations = [_build_place_recommendation(row) for row in rows]
+    message = _build_search_message(recommendations, city, cuisine)
 
     return SearchResult(
-        recommendations=recs,
+        recommendations=recommendations,
         message=message,
     )
 
@@ -137,21 +167,21 @@ async def find_or_create_place(
 ) -> tuple[UUID, str]:
     """Find an existing place or create a new one. Returns (place_id, canonical_name)."""
     pool = await get_pool()
-    normalized = normalize_name(name)
+    normalized_name = normalize_name(name)
     city_norm = normalize_city(city)
     threshold = get_settings().fuzzy_match_threshold
 
     # Exact match
-    row = await pool.fetchrow(
+    exact_match = await pool.fetchrow(
         "SELECT id, canonical_name FROM places WHERE name_normalized = $1 AND city = $2",
-        normalized,
+        normalized_name,
         city_norm,
     )
-    if row:
-        return row["id"], row["canonical_name"]
+    if exact_match:
+        return exact_match["id"], exact_match["canonical_name"]
 
     # Fuzzy match
-    row = await pool.fetchrow(
+    fuzzy_match = await pool.fetchrow(
         """
         SELECT id, canonical_name, similarity(name_normalized, $1) AS sim
         FROM places
@@ -159,28 +189,42 @@ async def find_or_create_place(
         ORDER BY sim DESC
         LIMIT 1
         """,
-        normalized,
+        normalized_name,
         city_norm,
         threshold,
     )
-    if row:
-        return row["id"], row["canonical_name"]
+    if fuzzy_match:
+        return fuzzy_match["id"], fuzzy_match["canonical_name"]
 
     # Create new place
-    tags = [t.lower() for t in (cuisine_tags or [])]
-    place_id = await pool.fetchval(
+    normalized_tags = [tag.lower() for tag in cuisine_tags or []]
+    inserted_place = await pool.fetchrow(
         """
         INSERT INTO places (canonical_name, name_normalized, city, neighborhood, cuisine_tags)
         VALUES ($1, $2, $3, $4, $5)
-        RETURNING id
+        ON CONFLICT (city, name_normalized) DO NOTHING
+        RETURNING id, canonical_name
         """,
         name,
-        normalized,
+        normalized_name,
         city_norm,
         neighborhood,
-        tags,
+        normalized_tags,
     )
-    return place_id, name
+    if inserted_place:
+        return inserted_place["id"], inserted_place["canonical_name"]
+
+    existing_place = await pool.fetchrow(
+        "SELECT id, canonical_name FROM places WHERE name_normalized = $1 AND city = $2",
+        normalized_name,
+        city_norm,
+    )
+    if existing_place is None:
+        raise RuntimeError(
+            f"Failed to create or fetch place for {name!r} in {city!r}",
+        )
+
+    return existing_place["id"], existing_place["canonical_name"]
 
 
 async def insert_feedback(
@@ -275,21 +319,7 @@ async def get_trending_places(
         limit,
     )
 
-    trending = []
-    for row in rows:
-        total = row["positive_count"] + row["negative_count"] + row["neutral_count"]
-        pct = row["positive_count"] / max(total, 1)
-        trending.append(PlaceRecommendation(
-            name=row["canonical_name"],
-            city=row["city"],
-            neighborhood=row["neighborhood"],
-            cuisine_tags=row["cuisine_tags"],
-            sentiment_summary=compute_sentiment_summary(pct, total),
-            positive_pct=round(pct, 2),
-            total_reviews=total,
-            last_reviewed=row["last_feedback_at"].isoformat() if row["last_feedback_at"] else None,
-        ))
-
+    trending = [_build_place_recommendation(row) for row in rows]
     period = f"last {days} days"
     if trending:
         message = f"{len(trending)} places trending in {city} over the {period}."
