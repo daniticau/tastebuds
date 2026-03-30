@@ -1,4 +1,4 @@
-from tastebud.db.queries import compute_sentiment_summary
+from tastebuds.db.queries import compute_sentiment_summary
 
 
 class TestComputeSentimentSummary:

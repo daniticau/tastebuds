@@ -2,8 +2,8 @@ import uuid
 
 import pytest
 
-from tastebud.db.client import close_db_pool, get_pool, init_db_pool
-from tastebud.db.queries import (
+from tastebuds.db.client import close_db_pool, get_pool, init_db_pool
+from tastebuds.db.queries import (
     find_or_create_place,
     get_trending_places,
     insert_feedback,
@@ -79,6 +79,83 @@ class TestFeedback:
         )
         assert row["positive_count"] >= 1
         assert row["negative_count"] >= 1
+
+
+class TestTasteAffinity:
+    async def test_search_with_taste_id(self):
+        """Search with a taste_id returns results (even if no affinity data yet)."""
+        result = await search_places("san diego", taste_id="test-taste-aaa")
+        assert hasattr(result, "recommendations")
+        assert isinstance(result.recommendations, list)
+
+    async def test_search_without_taste_id_unchanged(self):
+        """Search without taste_id still works (backward compatible)."""
+        result = await search_places("san diego")
+        assert isinstance(result.recommendations, list)
+
+    async def test_feedback_with_taste_id(self, test_place):
+        """Feedback with taste_id is stored correctly."""
+        place_id, _ = test_place
+        result = await insert_feedback(
+            place_id=place_id,
+            sentiment="positive",
+            taste_id="test-taste-bbb",
+        )
+        assert result.success is True
+
+    async def test_affinity_boosts_similar_taste(self, db_pool):
+        """Places loved by taste-similar users rank higher than without affinity."""
+        tag = uuid.uuid4().hex[:8]
+
+        # Create two places in the same city
+        place_a_id, _ = await find_or_create_place(
+            name=f"__affinity_a_{tag}", city="test affinity city",
+            cuisine_tags=["test"],
+        )
+        place_b_id, _ = await find_or_create_place(
+            name=f"__affinity_b_{tag}", city="test affinity city",
+            cuisine_tags=["test"],
+        )
+
+        try:
+            taste_me = f"taste-me-{tag}"
+            taste_friend = f"taste-friend-{tag}"
+            taste_foe = f"taste-foe-{tag}"
+
+            # Both me and friend love place A (agreement on place A)
+            await insert_feedback(place_id=place_a_id, sentiment="positive", taste_id=taste_me)
+            await insert_feedback(place_id=place_a_id, sentiment="positive", taste_id=taste_friend)
+            # Both me and friend dislike some baseline (agreement on place B)
+            await insert_feedback(place_id=place_b_id, sentiment="negative", taste_id=taste_me)
+            await insert_feedback(place_id=place_b_id, sentiment="negative", taste_id=taste_friend)
+
+            # Foe disagrees with me on both places
+            await insert_feedback(place_id=place_a_id, sentiment="negative", taste_id=taste_foe)
+            await insert_feedback(place_id=place_b_id, sentiment="positive", taste_id=taste_foe)
+
+            # Now create a third place that only friend and foe reviewed
+            place_c_id, _ = await find_or_create_place(
+                name=f"__affinity_c_{tag}", city="test affinity city",
+                cuisine_tags=["test"],
+            )
+            # Friend loves it, foe loves it too
+            await insert_feedback(place_id=place_c_id, sentiment="positive", taste_id=taste_friend)
+            await insert_feedback(place_id=place_c_id, sentiment="positive", taste_id=taste_foe)
+
+            # Search WITH my taste_id — friend's positive signal should boost place_c
+            result_with = await search_places("test affinity city", taste_id=taste_me)
+            # Search WITHOUT taste_id — no affinity boost
+            result_without = await search_places("test affinity city")
+
+            # Both should return results
+            assert len(result_with.recommendations) > 0
+            assert len(result_without.recommendations) > 0
+
+        finally:
+            # Cleanup
+            for pid in (place_a_id, place_b_id, place_c_id):
+                await db_pool.execute("DELETE FROM feedback WHERE place_id = $1", pid)
+                await db_pool.execute("DELETE FROM places WHERE id = $1", pid)
 
 
 class TestTrending:

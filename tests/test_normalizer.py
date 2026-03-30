@@ -1,4 +1,4 @@
-from tastebud.normalizer import normalize_city, normalize_name
+from tastebuds.normalizer import normalize_city, normalize_name
 
 
 class TestNormalizeName:

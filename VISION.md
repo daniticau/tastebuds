@@ -1,4 +1,4 @@
-# Tastebud
+# Tastebuds
 
 Invisible food recommendations. No reviews. No ratings. No forms. No UI.
 
@@ -24,8 +24,8 @@ review platforms miss entirely.
 
 ## The Black Box
 
-Tastebud is invisible to the user. They never see its name. Poke doesn't say
-"based on crowd-sourced reviews" or "according to Tastebud data." It just recommends.
+Tastebuds is invisible to the user. They never see its name. Poke doesn't say
+"based on crowd-sourced reviews" or "according to Tastebuds data." It just recommends.
 Like a friend who always knows where to eat. The user experience is:
 
 - **Input**: "I want food near me" / "craving Thai" / "what's good around here?"

@@ -1,18 +1,18 @@
 databases:
-  - name: tastebud-db
+  - name: tastebuds-db
     plan: free
-    databaseName: tastebud
-    user: tastebud
+    databaseName: tastebuds
+    user: tastebuds
 
 services:
   - type: web
-    name: tastebud
+    name: tastebuds
     runtime: docker
     plan: free
     envVars:
-      - key: TASTEBUD_DATABASE_URL
+      - key: TASTEBUDS_DATABASE_URL
         fromDatabase:
-          name: tastebud-db
+          name: tastebuds-db
           property: connectionString
       - key: FASTMCP_STATELESS_HTTP
         value: "true"

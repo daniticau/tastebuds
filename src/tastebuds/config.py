@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     recency_halflife_days: int = 30
     min_reviews_for_ranking: int = 1
 
-    model_config = {"env_prefix": "TASTEBUD_", "env_file": ".env"}
+    model_config = {"env_prefix": "TASTEBUDS_", "env_file": ".env"}
 
 
 @lru_cache
