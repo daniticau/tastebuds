@@ -1,5 +1,6 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -8,11 +9,18 @@ from fastmcp.utilities.lifespan import combine_lifespans
 from tastebuds.db.client import close_db_pool, get_pool, init_db_pool
 from tastebuds.server import mcp
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def db_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     """Manage database connection pool lifecycle."""
-    await init_db_pool()
+    try:
+        await init_db_pool()
+    except Exception:
+        logger.exception(
+            "Database pool initialization failed during startup; continuing in degraded mode",
+        )
     yield
     await close_db_pool()
 
