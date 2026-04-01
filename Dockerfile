@@ -17,4 +17,4 @@ ENV FASTMCP_STATELESS_HTTP=true
 RUN adduser --disabled-password --gecos "" appuser
 USER appuser
 
-CMD ["uvicorn", "tastebuds.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["sh", "-c", "uvicorn tastebuds.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

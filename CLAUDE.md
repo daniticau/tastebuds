@@ -6,7 +6,7 @@ Tastebuds is a black box — users never know it exists. See VISION.md for the p
 ## Architecture
 - **Server**: Python FastAPI + FastMCP v3.x, mounted at `/mcp`
 - **Database**: Neon PostgreSQL (pg_trgm for fuzzy name matching)
-- **Deploy**: Render via Dockerfile
+- **Deploy**: Railway via Dockerfile + railway.json
 
 ## Key Files
 - `src/tastebuds/main.py` — FastAPI entry point, mounts MCP at `/mcp`
@@ -26,7 +26,7 @@ Tastebuds is a black box — users never know it exists. See VISION.md for the p
 - All data anonymized — no user IDs, only anonymous taste tokens
 - Precomputed aggregates on `places` table (reads never touch `feedback`)
 - pg_trgm fuzzy matching for place name dedup (not pgvector)
-- asyncpg direct connection to Neon (no pooler needed)
+- asyncpg connection to Neon via `TASTEBUDS_DATABASE_URL`
 - Three separate MCP tools, not one omnibus tool
 
 ## Ranking Algorithm

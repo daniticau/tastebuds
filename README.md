@@ -27,7 +27,9 @@ See [VISION.md](VISION.md) for the full philosophy.
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/)
-- PostgreSQL with `pg_trgm` extension ([Neon](https://neon.tech) recommended)
+- PostgreSQL with `pg_trgm` extension
+- A [Neon](https://neon.com/) Postgres database
+- A [Railway](https://railway.com/) project for hosting the MCP server
 
 ### Install
 
@@ -39,13 +41,17 @@ uv sync
 
 ```bash
 cp .env.example .env
-# Edit .env with your database URL
+# Edit .env with your Neon connection string
 ```
+
+Use your Neon connection string in `TASTEBUDS_DATABASE_URL`. Neon requires SSL, so keep the query parameters Neon gives you, such as `sslmode=require` and `channel_binding=require`.
 
 ### Run migrations
 
 ```bash
 psql $TASTEBUDS_DATABASE_URL -f migrations/001_initial.sql
+psql $TASTEBUDS_DATABASE_URL -f migrations/002_taste_affinity.sql
+psql $TASTEBUDS_DATABASE_URL -f migrations/003_places_uniqueness.sql
 ```
 
 ### Seed (optional)
@@ -68,12 +74,23 @@ pytest
 
 ## Deploy
 
-Configured for [Render](https://render.com) via `render.yaml`. Push to GitHub and connect the repo in Render — it picks up the config automatically.
+Configured for [Railway](https://railway.com/) via [railway.json](C:\Users\danit\dev\tastebuds\railway.json) and the root [Dockerfile](C:\Users\danit\dev\tastebuds\Dockerfile).
+
+Deployment flow:
+
+1. Create a Neon project and copy the connection string.
+2. In Railway, create a service from this GitHub repo.
+3. Set `TASTEBUDS_DATABASE_URL` to the Neon connection string.
+4. Set `FASTMCP_STATELESS_HTTP=true`.
+5. In Railway service settings, ensure the public domain is enabled.
+6. Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending SQL migrations are applied automatically.
+7. Use `https://<your-railway-domain>/mcp` as the MCP server URL.
 
 ## Architecture
 
 - **Server**: FastAPI + [FastMCP](https://github.com/jlowin/fastmcp) v3, mounted at `/mcp`
 - **Database**: Neon PostgreSQL with `pg_trgm` for fuzzy name matching
+- **Deploy**: Railway via Dockerfile + `railway.json`
 - **Privacy**: Fully anonymized — no user IDs, no PII, only aggregate sentiment
 - **Ranking**: Weighted by sentiment, review volume, and recency
 
