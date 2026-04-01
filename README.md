@@ -76,6 +76,11 @@ pytest
 
 Configured for [Railway](https://railway.com/) via [railway.json](C:\Users\danit\dev\tastebuds\railway.json) and the root [Dockerfile](C:\Users\danit\dev\tastebuds\Dockerfile).
 
+Live endpoints:
+
+- Health: `https://tastebuds-production.up.railway.app/health`
+- MCP: `https://tastebuds-production.up.railway.app/mcp/`
+
 Deployment flow:
 
 1. Create a Neon project and copy the connection string.
@@ -84,7 +89,7 @@ Deployment flow:
 4. Set `FASTMCP_STATELESS_HTTP=true`.
 5. In Railway service settings, ensure the public domain is enabled.
 6. Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending SQL migrations are applied automatically.
-7. Use `https://<your-railway-domain>/mcp` as the MCP server URL.
+7. Use `https://<your-railway-domain>/mcp/` as the MCP server URL.
 
 ## Architecture
 
