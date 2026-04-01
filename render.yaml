@@ -9,6 +9,7 @@ services:
     name: tastebuds
     runtime: docker
     plan: free
+    healthCheckPath: /health
     envVars:
       - key: TASTEBUDS_DATABASE_URL
         fromDatabase:
