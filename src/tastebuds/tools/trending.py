@@ -1,9 +1,12 @@
+import logging
 from typing import Annotated
 
 from pydantic import Field
 
 from tastebuds.db.queries import get_trending_places
 from tastebuds.server import mcp
+
+logger = logging.getLogger(__name__)
 
 
 @mcp.tool()
@@ -23,5 +26,9 @@ async def get_trending(
     Shows places getting the most positive buzz recently.
     Useful when the user asks what's hot, popular, or new.
     """
-    result = await get_trending_places(city, days, limit)
-    return result.model_dump()
+    try:
+        result = await get_trending_places(city, days, limit)
+        return result.model_dump()
+    except Exception:
+        logger.exception("get_trending failed")
+        return {"error": "Something went wrong. Please try again."}
