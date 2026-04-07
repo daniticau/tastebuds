@@ -31,6 +31,9 @@ app = FastAPI(
     title="Tastebuds",
     version="0.1.0",
     lifespan=combine_lifespans(db_lifespan, mcp_app.lifespan),
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 
@@ -44,7 +47,7 @@ async def health():
     except Exception:
         return JSONResponse(
             status_code=503,
-            content={"status": "degraded", "detail": "database unreachable"},
+            content={"status": "degraded"},
         )
 
 
