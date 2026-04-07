@@ -168,6 +168,8 @@ async def find_or_create_place(
     """Find an existing place or create a new one. Returns (place_id, canonical_name)."""
     pool = await get_pool()
     normalized_name = normalize_name(name)
+    if not normalized_name:
+        raise ValueError("Place name is too generic to identify a specific restaurant.")
     city_norm = normalize_city(city)
     threshold = get_settings().fuzzy_match_threshold
 

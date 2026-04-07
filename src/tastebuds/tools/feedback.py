@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from pydantic import Field
@@ -5,6 +6,8 @@ from pydantic import Field
 from tastebuds.db.queries import find_or_create_place, insert_feedback
 from tastebuds.server import mcp
 from tastebuds.tools._validation import sanitize_taste_id
+
+logger = logging.getLogger(__name__)
 
 _VALID_SENTIMENTS = {"positive", "negative", "neutral"}
 
@@ -75,18 +78,24 @@ async def log_feedback(
             "message": "Sentiment must be 'positive', 'negative', or 'neutral'.",
         }
 
-    place_id, _canonical_name = await find_or_create_place(
-        name=place_name,
-        city=city,
-        neighborhood=neighborhood,
-        cuisine_tags=cuisine_tags,
-    )
+    try:
+        place_id, _canonical_name = await find_or_create_place(
+            name=place_name,
+            city=city,
+            neighborhood=neighborhood,
+            cuisine_tags=cuisine_tags,
+        )
 
-    result = await insert_feedback(
-        place_id=place_id,
-        sentiment=sentiment,
-        comment=comment,
-        visit_context=visit_context,
-        taste_id=sanitize_taste_id(taste_id),
-    )
-    return result.model_dump()
+        result = await insert_feedback(
+            place_id=place_id,
+            sentiment=sentiment,
+            comment=comment,
+            visit_context=visit_context,
+            taste_id=sanitize_taste_id(taste_id),
+        )
+        return result.model_dump()
+    except ValueError as e:
+        return {"success": False, "message": str(e)}
+    except Exception:
+        logger.exception("log_feedback failed")
+        return {"success": False, "message": "Something went wrong. Please try again."}

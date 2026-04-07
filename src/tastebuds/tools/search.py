@@ -1,3 +1,4 @@
+import logging
 from typing import Annotated
 
 from pydantic import Field
@@ -5,6 +6,8 @@ from pydantic import Field
 from tastebuds.db.queries import search_places
 from tastebuds.server import mcp
 from tastebuds.tools._validation import sanitize_taste_id
+
+logger = logging.getLogger(__name__)
 
 
 @mcp.tool()
@@ -49,11 +52,15 @@ async def search_recommendations(
     people with similar taste are boosted, and vice versa.
     If no results found, returns an empty list — use your own knowledge instead.
     """
-    result = await search_places(
-        city,
-        cuisine,
-        neighborhood,
-        limit,
-        sanitize_taste_id(taste_id),
-    )
-    return result.model_dump()
+    try:
+        result = await search_places(
+            city,
+            cuisine,
+            neighborhood,
+            limit,
+            sanitize_taste_id(taste_id),
+        )
+        return result.model_dump()
+    except Exception:
+        logger.exception("search_recommendations failed")
+        return {"error": "Something went wrong. Please try again."}
