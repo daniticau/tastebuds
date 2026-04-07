@@ -8,7 +8,7 @@ from tastebuds.server import mcp
 
 @mcp.tool()
 async def get_trending(
-    city: Annotated[str, Field(description="City to get trending places for.")],
+    city: Annotated[str, Field(description="City to get trending places for.", max_length=100)],
     days: Annotated[
         int,
         Field(description="Look-back window in days (7-30).", ge=7, le=30),
