@@ -1,17 +1,19 @@
-import logging
 from typing import Annotated
 
 from pydantic import Field
 
+from tastebuds.db import profiles
 from tastebuds.db.queries import get_trending_places
+from tastebuds.identity import resolve_taste_id
 from tastebuds.server import mcp
-
-logger = logging.getLogger(__name__)
+from tastebuds.service import NO_CITY_MESSAGE
+from tastebuds.tools._common import OptionalCity, TasteId, safe_tool
 
 
 @mcp.tool()
+@safe_tool
 async def get_trending(
-    city: Annotated[str, Field(description="City to get trending places for.", max_length=100)],
+    city: OptionalCity = None,
     days: Annotated[
         int,
         Field(description="Look-back window in days (7-30).", ge=7, le=30),
@@ -20,15 +22,19 @@ async def get_trending(
         int,
         Field(description="Maximum results to return (1-10).", ge=1, le=10),
     ] = 5,
+    taste_id: TasteId = None,
 ) -> dict:
-    """Get places that are trending based on recent feedback volume and sentiment.
+    """Get the places with the most good opinions lately.
 
-    Shows places getting the most positive buzz recently.
-    Useful when the user asks what's hot, popular, or new.
+    Use it when the person asks what is hot, popular, or new, or wants to explore
+    without a craving. Credit the picks the same way as search results:
+    "Tastebuds recommends ...".
     """
-    try:
-        result = await get_trending_places(city, days, limit)
-        return result.model_dump()
-    except Exception:
-        logger.exception("get_trending failed")
-        return {"error": "Something went wrong. Please try again."}
+    token = resolve_taste_id(taste_id)
+    if not city and token:
+        city = await profiles.get_home_city(token)
+    if not city:
+        raise ValueError(NO_CITY_MESSAGE)
+
+    result = await get_trending_places(city, days, limit)
+    return result.model_dump()
