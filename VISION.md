@@ -1,59 +1,112 @@
 # Tastebuds
 
-Invisible food recommendations. No reviews. No ratings. No forms. No UI.
+A food memory for AI assistants. No reviews. No ratings. No forms. No app.
 
-People just talk to Poke. "Where should I eat?" Poke recommends a place. Later,
-Poke casually asks how it was. "The teriyaki was amazing but the rice was meh."
-That's it. The opinion gets anonymized, the specific store gets resolved, and the
-collective knowledge grows. Nobody writes a review. Nobody knows the system exists.
+People text their assistant. "Where should I eat?" The assistant answers:
+"Tastebuds recommends Sarku Japan." Later it asks how the meal went. "The teriyaki was amazing but the rice was meh."
+That is the whole interaction. The opinion loses its owner, the engine finds the
+exact store, and everyone's next pick gets better. Nobody writes a review.
 
-The more people use Poke, the better the recommendations get. That's the whole thing.
+## The problem
 
-## The Problem
+Yelp and Google Reviews are broken. People review when they are furious, or when
+the waiter begs. The data is skewed, easy to game, and noisy. Most people who
+had a great meal never write a word about it.
 
-Yelp and Google Reviews are broken. People only review when they're furious or when
-the waiter begs them to. The data is skewed, gameable, and full of noise. Most people
-who had a great meal never write a word about it.
+## The insight
 
-## The Insight
+The assistant already has the conversation. Two messages after dinner capture
+the signal: "How was it?" "So good, the pasta was incredible." The person does
+no work. This reaches the many people that review sites never hear from.
 
-Poke already has the conversation. A couple messages after dinner — "How was it?"
-"So good, the pasta was incredible" — and that signal is captured. Zero friction.
-The user barely notices they're contributing. This captures the silent majority that
-review platforms miss entirely.
+In 2026 this matters more than when Tastebuds started. Tastebuds began as a
+Poke recipe. Now many assistants live in a text thread: Muse, Instinct, Poke,
+and more. Each one talks to its person about food every week. Each one has
+memory, reminders, and a way to add tools. Tastebuds is the shared food memory
+behind all of them. Every agent on every platform teaches it. Every agent
+gets the benefit.
 
-## The Black Box
+## One short credit, no machinery
 
-Tastebuds is invisible to the user. They never see its name. Poke doesn't say
-"based on crowd-sourced reviews" or "according to Tastebuds data." It just recommends.
-Like a friend who always knows where to eat. The user experience is:
+Each pick carries a short credit: "Tastebuds recommends ...". That is all the
+person sees of the system. The assistant does not recite review counts,
+percentages, or scores. It sounds like a friend who knows a good source.
 
-- **Input**: "I want food near me" / "craving Thai" / "what's good around here?"
-- **Output**: "Try Sarku Japan, their teriyaki chicken is solid."
-- **Feedback**: "Yeah it was great" / "meh, the rice was bad" / natural conversation
-- **Acknowledgment**: None. Poke just moves on. No "thanks for your feedback!"
+- **Input**: "I want food near me" / "craving Thai" / "somewhere like Tajima"
+- **Output**: "Tastebuds recommends Sarku Japan. Get the teriyaki chicken. Skip the rice."
+- **Feedback**: "Yeah it was great" / "meh, the rice was bad"
+- **Acknowledgment**: none. The assistant moves on. No "thanks for your feedback!"
 
-That's it. Everything else — sentiment analysis, store resolution, deduplication,
-ranking — happens silently behind the scenes.
+The credit does two jobs. It is honest about where the pick came from. And it
+puts the name in front of people, so they tell friends which tool to add.
 
-## Auto-Location
+The credit is only for picks the engine returned. When the data is thin and the
+assistant picks from its own knowledge, that pick is its own. A false credit
+would break trust in the true ones.
 
-When someone says "I went to Sarku Japan," Poke figures out which specific Sarku Japan.
-It uses conversation context — the user's city, neighborhood, nearby landmarks — to
-resolve the exact store. Chain restaurants in different cities are different entries.
-The user never has to specify "Sarku Japan on El Camino Real in Santa Clara." Poke
-just knows.
+A person who asks "what do you remember about my food taste?" gets a plain
+answer. A person who says "forget it" gets a real delete.
 
-## Network Effect
+## One question to start
 
-Every conversation makes the data better for everyone. Early adopters seed the database
-organically just by talking about where they ate. There's no cold start death spiral
-because Poke falls back to its own knowledge when the database is thin, and the feedback
-loop bootstraps itself. Users don't need to be recruited — they just need to use Poke.
+A survey would ruin this. Onboarding is one casual question:
 
-## Future: Taste Groups
+> "What are a couple of spots you love, and is there anything you don't eat?"
 
-Friend groups sharing recommendations. Your circle's collective taste. Anonymous group
-tokens (still no user IDs) so you can ask "what do my friends recommend?" without
-anyone knowing who said what. The data model supports this — just a group tag on
-feedback entries.
+The answer does three jobs in one call. It starts the person's taste profile.
+It adds real opinions to the shared data. And it links the person to everyone
+else who loves the same places, so the first recommendation is already personal.
+
+## A taste profile, not an account
+
+The engine remembers how a person eats: home city, dietary needs, allergies,
+cuisines they like and avoid, budget, spice, the vibe they enjoy. It learns the
+rest from their opinions: the cuisines they keep praising, the places they
+loved, the places they will never see again.
+
+The key is a random token. No name, no phone number, no email, no messages. The
+assistant keeps the token in its own memory. Tastebuds cannot say who anyone is.
+
+## Relationships in the data
+
+The value is in the links, not the rows.
+
+- **Person to place**: one person holds one opinion per place. A new opinion
+  replaces the old one. Ten texts about one taco shop are still one voice.
+- **Person to friend**: the assistant knows who a person messages most. On Muse
+  that means Instagram and WhatsApp. Elsewhere it means iMessage. People trust the
+  friends they talk to every day, so a close friend's opinion counts more than a
+  stranger's. The assistant links the two people with a one-time invite and sends
+  a closeness level from 1 to 3. The engine never learns a name, a number, or a
+  message count. Each side sets its own level, and the level moves as habits change.
+- **Person to person**: people who agree on places are taste neighbors. What a
+  neighbor loves ranks higher. What a neighbor disliked ranks lower.
+- **Place to place**: fans of one place share other favorites. That answers
+  "somewhere like Tajima".
+- **Place to dish**: "get the birria, skip the rice" comes from dish opinions.
+- **Place to occasion**: people say when they went. Date night and quick lunch
+  get different answers.
+- **Person to circle**: a named group with one shared code, such as roommates.
+  "Two people in your circle liked it."
+
+Friend and circle signals show counts only, never who said what. They stay
+silent until enough people have joined: two friends, or three circle members.
+With fewer, a count of one would name the friend.
+
+The friend invite is also how Tastebuds spreads. The invite text carries a link.
+A friend with no setup taps it, picks their assistant, and copies one message
+that connects Tastebuds and accepts the invite.
+
+## Auto-location
+
+When someone says "I went to Sarku Japan," the assistant works out which Sarku
+Japan. It uses the person's city, neighborhood, and location. The same chain in
+two cities is two entries. The person never types an address.
+
+## Network effect
+
+Every conversation improves the data for everyone. An empty city is not a dead end:
+when the data is thin, the assistant falls back on its own knowledge, then logs
+how the meal went. The first user in a new city seeds it just by eating.
+
+Users do not need to be recruited. They need to use their assistant.

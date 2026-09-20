@@ -1,15 +1,13 @@
 """Seed the database with well-known San Diego restaurants.
 
-Idempotent — skips places that already exist by normalized name.
+Idempotent: a place that already exists is not added again.
 Run: python -m scripts.seed
 """
 
 import asyncio
 
-import asyncpg
-
-from tastebuds.config import get_settings
-from tastebuds.normalizer import normalize_city, normalize_name
+from tastebuds.db.client import close_db_pool, get_pool, init_db_pool
+from tastebuds.db.queries import find_or_create_place
 
 SEED_PLACES = [
     # (name, city, neighborhood, cuisine_tags)
@@ -58,40 +56,22 @@ SEED_PLACES = [
 
 async def seed() -> None:
     """Insert seed places, skipping duplicates."""
-    conn = await asyncpg.connect(dsn=get_settings().database_url)
-
-    inserted = 0
-    skipped = 0
+    await init_db_pool()
+    pool = await get_pool()
+    before = await pool.fetchval("SELECT COUNT(*) FROM places")
 
     for name, city, neighborhood, tags in SEED_PLACES:
-        normalized = normalize_name(name)
-        city_norm = normalize_city(city)
-
-        exists = await conn.fetchval(
-            "SELECT 1 FROM places WHERE name_normalized = $1 AND city = $2",
-            normalized,
-            city_norm,
+        # The same path as live feedback: dedup, cuisine parents, tags from the name.
+        await find_or_create_place(
+            name=name,
+            city=city,
+            neighborhood=neighborhood,
+            cuisine_tags=tags,
         )
 
-        if exists:
-            skipped += 1
-            continue
-
-        await conn.execute(
-            """
-            INSERT INTO places (canonical_name, name_normalized, city, neighborhood, cuisine_tags)
-            VALUES ($1, $2, $3, $4, $5)
-            """,
-            name,
-            normalized,
-            city_norm,
-            neighborhood,
-            tags,
-        )
-        inserted += 1
-
-    await conn.close()
-    print(f"Seed complete: {inserted} inserted, {skipped} skipped (already exist)")
+    inserted = await pool.fetchval("SELECT COUNT(*) FROM places") - before
+    await close_db_pool()
+    print(f"Seed complete: {inserted} inserted, {len(SEED_PLACES) - inserted} already there")
 
 
 if __name__ == "__main__":

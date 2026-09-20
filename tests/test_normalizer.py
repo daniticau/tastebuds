@@ -57,3 +57,33 @@ class TestNormalizeCity:
 
     def test_empty(self):
         assert normalize_city("") == ""
+
+
+class TestGenericNames:
+    def test_pointing_words_are_generic(self):
+        from tastebuds.normalizer import is_generic_name
+
+        for name in ("restaurant", "that thai place", "a cafe", "Sushi Bar", "the pizza place", "", "!!!"):
+            assert is_generic_name(name), name
+
+    def test_real_names_pass(self):
+        from tastebuds.normalizer import is_generic_name
+
+        for name in ("The Taco Stand", "Tajima Ramen", "Joe's Pizza", "Waffle House", "Din Tai Fung", "Crack Shack"):
+            assert not is_generic_name(name), name
+
+
+class TestCityAndDish:
+    def test_city_nicknames(self):
+        from tastebuds.normalizer import normalize_city
+
+        assert normalize_city("SF") == "san francisco"
+        assert normalize_city("NYC") == "new york"
+        assert normalize_city("St. Louis, MO") == "saint louis"
+        assert normalize_city("San Diego, CA") == "san diego"
+
+    def test_dish_names_match_across_phrasing(self):
+        from tastebuds.normalizer import normalize_dish
+
+        assert normalize_dish("The Spicy Miso Ramen!") == normalize_dish("spicy miso ramen")
+        assert normalize_dish("") == ""

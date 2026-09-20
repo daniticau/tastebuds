@@ -1,5 +1,7 @@
 import re
 
+from tastebuds.taxonomy import cuisine_words
+
 
 _SUFFIXES = {
     "restaurant",
@@ -30,6 +32,36 @@ _ORDINAL_PATTERN = re.compile(
     r"\b(on|at)\s+\d+(st|nd|rd|th)\b",
     re.IGNORECASE,
 )
+
+# Nicknames people text. Only unambiguous ones belong here.
+_CITY_ALIASES = {
+    "sf": "san francisco",
+    "san fran": "san francisco",
+    "nyc": "new york",
+    "new york city": "new york",
+    "manhattan": "new york",
+    "la": "los angeles",
+    "sd": "san diego",
+    "dc": "washington",
+    "washington dc": "washington",
+    "philly": "philadelphia",
+    "vegas": "las vegas",
+    "nola": "new orleans",
+    "atl": "atlanta",
+    "pdx": "portland",
+    "slc": "salt lake city",
+    "st louis": "saint louis",
+    "st paul": "saint paul",
+}
+
+_DISH_NOISE = {"the", "a", "an", "their", "my", "some"}
+
+# Words that point at a place without naming it. Keep this list tight:
+# 'stand', 'house', and 'kitchen' are parts of real names such as "The Taco Stand".
+_GENERIC_NAME_WORDS = {
+    "the", "a", "an", "that", "this", "some", "my", "our", "new", "local", "good",
+    "place", "places", "joint", "food", "near", "nearby", "me", "here", "around", "corner",
+}
 
 
 def _strip_trailing_suffixes(value: str) -> str:
@@ -69,8 +101,19 @@ def normalize_name(name: str) -> str:
     return _strip_trailing_suffixes(normalized)
 
 
+def is_generic_name(name: str) -> bool:
+    """True for 'that thai place' or 'a restaurant': words that name no specific place."""
+    normalized = _PUNCTUATION_PATTERN.sub("", name.lower())
+    words = normalized.split()
+    if not words:
+        return True
+
+    generic = _SUFFIXES | _GENERIC_NAME_WORDS | cuisine_words()
+    return all(word in generic for word in words)
+
+
 def normalize_city(city: str) -> str:
-    """Normalize a city name: lowercase, strip state suffixes."""
+    """Normalize a city name: lowercase, strip state suffixes, resolve nicknames."""
     if not city:
         return ""
 
@@ -78,5 +121,16 @@ def normalize_city(city: str) -> str:
 
     # Strip state suffixes like ", CA" or ", California"
     normalized = _STATE_SUFFIX_PATTERN.sub("", normalized)
+    normalized = _WHITESPACE_PATTERN.sub(" ", normalized.replace(".", "")).strip()
 
-    return normalized.strip()
+    return _CITY_ALIASES.get(normalized, normalized)
+
+
+def normalize_dish(dish: str) -> str:
+    """Normalize a dish name so 'The Spicy Miso Ramen!' and 'spicy miso ramen' match."""
+    if not dish:
+        return ""
+
+    normalized = _PUNCTUATION_PATTERN.sub("", dish.lower())
+    words = [word for word in normalized.split() if word not in _DISH_NOISE]
+    return " ".join(words)

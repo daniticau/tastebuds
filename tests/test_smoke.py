@@ -4,7 +4,7 @@ from fastapi.testclient import TestClient
 
 from tastebuds import main
 from tastebuds.db import client as db_client
-from tastebuds.main import app
+from tastebuds.main import app, create_app
 
 
 @pytest.mark.anyio
@@ -62,7 +62,7 @@ def test_app_starts_when_db_init_fails(monkeypatch):
     monkeypatch.setattr(main, "init_db_pool", failing_init_db_pool)
     monkeypatch.setattr(main, "get_pool", failing_get_pool)
 
-    with TestClient(app) as client:
+    with TestClient(create_app()) as client:
         resp = client.get("/health")
 
     assert resp.status_code == 503
