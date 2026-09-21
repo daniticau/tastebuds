@@ -6,6 +6,7 @@ from tastebuds import service
 from tastebuds.identity import resolve_taste_id
 from tastebuds.server import mcp
 from tastebuds.tools._common import (
+    READS,
     Latitude,
     Longitude,
     OptionalCity,
@@ -16,7 +17,7 @@ from tastebuds.tools._common import (
 )
 
 
-@mcp.tool()
+@mcp.tool(title="Find where to eat", annotations=READS)
 @safe_tool
 async def search_recommendations(
     city: OptionalCity = None,

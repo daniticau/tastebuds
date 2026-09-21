@@ -7,7 +7,10 @@ from tastebuds.db import profiles
 from tastebuds.identity import resolve_taste_id
 from tastebuds.server import mcp
 from tastebuds.tools._common import (
+    DELETES,
     NEEDS_TASTE_ID,
+    READS,
+    WRITES,
     OptionalCity,
     PriceLevel,
     ShortTagList,
@@ -16,7 +19,7 @@ from tastebuds.tools._common import (
 )
 
 
-@mcp.tool()
+@mcp.tool(title="Read taste profile", annotations=READS)
 @safe_tool
 async def get_taste_profile(taste_id: TasteId = None) -> dict:
     """Read what the engine remembers about the person's food taste.
@@ -33,7 +36,7 @@ async def get_taste_profile(taste_id: TasteId = None) -> dict:
     return {"success": True, "profile": profile.model_dump()}
 
 
-@mcp.tool()
+@mcp.tool(title="Update taste profile", annotations=WRITES)
 @safe_tool
 async def update_taste_profile(
     taste_id: TasteId = None,
@@ -77,6 +80,10 @@ async def update_taste_profile(
             ),
         ),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        Field(description="Set true when you only test the connection. Nothing is stored."),
+    ] = False,
 ) -> dict:
     """Update the person's food profile when they state a lasting preference.
 
@@ -86,6 +93,8 @@ async def update_taste_profile(
     token = resolve_taste_id(taste_id)
     if not token:
         raise ValueError(NEEDS_TASTE_ID)
+    if dry_run:
+        return {"success": True, "dry_run": True, "message": "Dry run. Nothing was stored."}
 
     await profiles.upsert_profile(
         token,
@@ -107,7 +116,7 @@ async def update_taste_profile(
     return {"success": True, "profile": profile.model_dump()}
 
 
-@mcp.tool()
+@mcp.tool(title="Forget taste profile", annotations=DELETES)
 @safe_tool
 async def delete_taste_profile(
     taste_id: TasteId = None,

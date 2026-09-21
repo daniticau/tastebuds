@@ -1,18 +1,30 @@
 # Tastebuds on Instinct
 
 Instinct is invite-only and publishes no developer docs. What is public: it
-lives in iMessage, it runs a persistent cloud computer with a browser, it keeps
-credentials, and it follows up on its own. It uses a computer the way a person
-does. So Tastebuds gives it a page to read instead of a settings screen.
+lives in iMessage and WhatsApp, it runs a persistent cloud computer with a
+browser, it keeps credentials, and it follows up on its own. It has no settings
+screen for MCP. The person texts one message that names the server.
 
 ## The message to send
 
 ```text
-Set up Tastebuds for me. Read https://tastebuds-production.up.railway.app/llms.txt
-and follow it. Use it from now on whenever I talk about food.
+Add my Tastebuds connector: https://tastebuds-production.up.railway.app/mcp
+(standard MCP over HTTP, no sign-in needed). When you test the tools, set
+dry_run=true. Then call start_taste_profile for me and follow the playbook it
+returns. If you cannot use MCP, read https://tastebuds-production.up.railway.app/llms.txt
+and follow it.
 ```
 
-## What Instinct finds at /llms.txt
+## Why the server is built the way it is
+
+| Instinct behavior | What Tastebuds does about it |
+|---|---|
+| It keeps one `Mcp-Session-Id` for every call. | The server is stateless. A session id from before a deploy still gets an answer, with no new `initialize`. |
+| It writes its own client on its cloud computer. | The server forgives a bare `Accept: application/json`, a trailing slash, and loose input such as `"ramen, japanese"` for a list. Answers are plain JSON, not an event stream. |
+| Connectors with OAuth need a sign-in link that the person approves. | Tastebuds needs no sign-in, so that step never happens. |
+| It can fall back to a browser and a terminal. | `/llms.txt` explains a REST route: `POST /api/v1/<tool_name>`. It runs the same tools. |
+
+## What Instinct finds at /llms.txt, if it cannot use MCP
 
 - The MCP URL, if Instinct can use MCP servers.
 - A REST API for the same tools: `POST /api/v1/<tool_name>` with a JSON body.
@@ -31,8 +43,8 @@ It sends the invite text as an iMessage after the person agrees.
 
 ## Unknowns to verify with a real account
 
-- Whether Instinct supports MCP servers directly. If it does, use the MCP URL
-  and skip REST.
+- The exact setup phrasing. The message above follows the pattern that public
+  connector guides use for Instinct.
 - Where Instinct keeps long-term notes. The `taste_id` must survive between
   conversations. If it gets lost, `start_taste_profile` makes a new one, but the
   person's history stays with the old token.

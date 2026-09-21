@@ -37,7 +37,7 @@ async def test_get_pool_lazily_initializes(monkeypatch):
     monkeypatch.setattr(
         db_client,
         "get_settings",
-        lambda: type("Settings", (), {"database_url": "postgres://example"})(),
+        lambda: type("Settings", (), {"database_url": "postgres://example", "db_connect_attempts": 1})(),
     )
 
     async def fake_create_pool(**kwargs):

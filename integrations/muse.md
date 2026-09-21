@@ -25,11 +25,12 @@ Each choice below answers one Muse behavior.
 
 | Muse behavior | What Tastebuds does about it |
 |---|---|
-| Muse tests every tool during setup. | `start_taste_profile` and `log_feedback` take `dry_run=true`. `delete_taste_profile` does nothing without `confirm=true`. Test calls store no junk. |
+| Muse tests every tool during setup. | Every write tool that can succeed on made-up input takes `dry_run=true`. `delete_taste_profile` does nothing without `confirm=true`. Test calls store no junk. `tests/test_connectors.py` replays this setup. |
 | Muse writes its own client and may skip the MCP `instructions` field. | The playbook also comes back in the `start_taste_profile` result. Muse sees it during setup and keeps it in the skill. Tool descriptions carry the key rules too. |
 | Muse keeps the integration as a skill file. | The server mints the `taste_id`. The skill stores it. The model never has to invent a UUID and recall it. |
 | Muse favors API keys over OAuth. | No auth is needed. As an option, Muse can store the `taste_id` as a bearer key in its Secure Credentials Store. The server reads `Authorization: Bearer <taste_id>`, so the token never appears in a tool call. |
 | The Muse VM is in the cloud. | The server is a public HTTPS endpoint. Both `/mcp` and `/mcp/` answer without a redirect. |
+| Muse writes the client itself, so small protocol slips can happen. | Any `Accept` header works, answers are plain JSON, and the server is stateless. |
 | Custom connectors use the same usage meter as everything else. | Responses stay small: at most 10 places, 3 dishes, and 2 notes per place. |
 | Muse links Instagram, Facebook, and Threads through Accounts Center, and chats in WhatsApp. It may see who the person messages most (not verified, see below). | The playbook tells Muse to offer friend links once, call `invite_friend` for about five top contacts, and set closeness from 1 to 3 by messaging activity. Muse sends each friend the invite over the channel they already use, after the person agrees. Only the level reaches the server. |
 | Muse makes unprompted suggestions and has reminders. | Search results carry an `agent_note` that asks for a follow-up in a day or two. `get_follow_ups` lists what still needs a question. |

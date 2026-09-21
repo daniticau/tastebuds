@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
 from fastmcp.exceptions import NotFoundError
+from fastmcp.exceptions import ValidationError as ToolValidationError
 from fastmcp.utilities.lifespan import combine_lifespans
 from pydantic import ValidationError
 from starlette.types import ASGIApp, Receive, Scope, Send
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 _LANDING_TEMPLATE = (Path(__file__).parent / "web" / "landing.html").read_text(encoding="utf-8")
 _MAX_API_BODY_BYTES = 64_000
 _API_PREFIX = "/api/v1"
-_VERSION = "0.2.0"
+_VERSION = "0.3.0"
 
 
 @asynccontextmanager
@@ -41,15 +42,28 @@ async def db_lifespan(_app: FastAPI) -> AsyncIterator[None]:
     await decisions.close_client()
 
 
-class McpTrailingSlashMiddleware:
-    """Serve /mcp/ and /mcp alike. Some MCP clients do not follow a redirect on POST."""
+_MCP_ACCEPT = b"application/json, text/event-stream"
+
+
+class McpClientToleranceMiddleware:
+    """Accept the small mistakes that hand-written MCP clients make.
+
+    Agent platforms such as Muse and Instinct write their own clients. Two mistakes are common:
+    - POST to /mcp/ with a trailing slash. Some clients do not follow a redirect on POST.
+    - An Accept header that names only application/json. The MCP library answers 406 to that.
+    """
 
     def __init__(self, app: ASGIApp) -> None:
         self.app = app
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        if scope["type"] == "http" and scope["path"] == "/mcp/":
-            scope = {**scope, "path": "/mcp", "raw_path": b"/mcp"}
+        if scope["type"] == "http" and scope["path"] in ("/mcp", "/mcp/"):
+            headers = [(name, value) for name, value in scope["headers"] if name != b"accept"]
+            if scope["method"] == "POST":
+                headers.append((b"accept", _MCP_ACCEPT))
+            else:
+                headers.extend((n, v) for n, v in scope["headers"] if n == b"accept")
+            scope = {**scope, "path": "/mcp", "raw_path": b"/mcp", "headers": headers}
         await self.app(scope, receive, send)
 
 
@@ -161,10 +175,12 @@ async def call_tool(tool_name: str, request: Request) -> JSONResponse:
         result = await mcp.call_tool(tool_name, arguments)
     except NotFoundError:
         return JSONResponse(status_code=404, content={"error": f"Unknown tool: {tool_name}"})
-    except ValidationError as exc:
+    except (ValidationError, ToolValidationError) as exc:
+        # The MCP library wraps the pydantic error. The field details live on the cause.
+        detail = exc if isinstance(exc, ValidationError) else exc.__cause__
         problems = [
             {"field": ".".join(str(part) for part in error["loc"]), "problem": error["msg"]}
-            for error in exc.errors()
+            for error in (detail.errors() if isinstance(detail, ValidationError) else [])
         ]
         return JSONResponse(
             status_code=422,
@@ -178,7 +194,10 @@ async def call_tool(tool_name: str, request: Request) -> JSONResponse:
 
 def create_app() -> FastAPI:
     """Build the app. The MCP session manager runs once per instance, so tests build their own."""
-    mcp_app = mcp.http_app(path="/mcp")
+    # Stateless: no session survives a deploy, so a client that keeps an old
+    # Mcp-Session-Id (Instinct keeps one for every call) still gets an answer.
+    # Plain JSON responses: simpler than an event stream for clients that agents write.
+    mcp_app = mcp.http_app(path="/mcp", stateless_http=True, json_response=True)
     application = FastAPI(
         title="Tastebuds",
         version=_VERSION,
@@ -194,7 +213,7 @@ def create_app() -> FastAPI:
         per_minute=per_minute,
         trust_proxy_headers=trust_proxy,
     )
-    application.add_middleware(McpTrailingSlashMiddleware)
+    application.add_middleware(McpClientToleranceMiddleware)
 
     application.include_router(router)
     # Last, so every route above wins. The MCP app answers /mcp.

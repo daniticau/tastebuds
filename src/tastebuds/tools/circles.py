@@ -12,7 +12,7 @@ from tastebuds.identity import (
 )
 from tastebuds.privacy import scrub_text
 from tastebuds.server import mcp
-from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, safe_tool
+from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, WRITES, safe_tool
 
 InviteCode = Annotated[
     str,
@@ -41,7 +41,7 @@ def _circle_message(circle: CircleInfo) -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(title="Create a circle", annotations=WRITES)
 @safe_tool
 async def create_circle(
     taste_id: TasteId = None,
@@ -49,6 +49,10 @@ async def create_circle(
         str | None,
         Field(description="Optional circle name, for example 'roommates'.", max_length=60),
     ] = None,
+    dry_run: Annotated[
+        bool,
+        Field(description="Set true when you only test the connection. Nothing is stored."),
+    ] = False,
 ) -> dict:
     """Create a circle: a friend group whose taste shapes each other's recommendations.
 
@@ -59,6 +63,8 @@ async def create_circle(
     token = resolve_taste_id(taste_id)
     if not token:
         raise ValueError(NEEDS_TASTE_ID)
+    if dry_run:
+        return {"success": True, "dry_run": True, "message": "Dry run. No circle was created."}
 
     circle = await profiles.create_circle(token, scrub_text(name, max_length=60))
     return {
@@ -72,7 +78,7 @@ async def create_circle(
     }
 
 
-@mcp.tool()
+@mcp.tool(title="Join a circle", annotations=WRITES)
 @safe_tool
 async def join_circle(invite_code: InviteCode, taste_id: TasteId = None) -> dict:
     """Join a friend's circle with the invite code the friend sent."""
@@ -86,7 +92,7 @@ async def join_circle(invite_code: InviteCode, taste_id: TasteId = None) -> dict
     return {"success": True, "circle": circle.model_dump(), "message": _circle_message(circle)}
 
 
-@mcp.tool()
+@mcp.tool(title="Leave a circle", annotations=WRITES)
 @safe_tool
 async def leave_circle(invite_code: InviteCode, taste_id: TasteId = None) -> dict:
     """Leave a circle. Use get_taste_profile to see the person's circles and their codes."""

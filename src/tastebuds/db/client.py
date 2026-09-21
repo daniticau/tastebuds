@@ -9,7 +9,6 @@ logger = logging.getLogger(__name__)
 
 _pool: asyncpg.Pool | None = None
 _pool_lock = asyncio.Lock()
-_MAX_CONNECT_ATTEMPTS = 3
 _POOL_MIN_SIZE = 1
 _POOL_MAX_SIZE = 10
 
@@ -20,8 +19,10 @@ async def init_db_pool() -> asyncpg.Pool:
     if _pool is not None:
         return _pool
 
-    dsn = get_settings().database_url
-    for attempt in range(_MAX_CONNECT_ATTEMPTS):
+    settings = get_settings()
+    dsn = settings.database_url
+    attempts = max(settings.db_connect_attempts, 1)
+    for attempt in range(attempts):
         try:
             _pool = await asyncpg.create_pool(
                 dsn=dsn,
@@ -30,7 +31,7 @@ async def init_db_pool() -> asyncpg.Pool:
             )
             return _pool
         except (OSError, asyncpg.PostgresError) as exc:
-            if attempt < _MAX_CONNECT_ATTEMPTS - 1:
+            if attempt < attempts - 1:
                 wait = 2 ** attempt
                 logger.warning(
                     "DB connect attempt %d failed, retrying in %ds: %s",

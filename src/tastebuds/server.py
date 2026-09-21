@@ -1,10 +1,13 @@
 from fastmcp import FastMCP
 
+from tastebuds.config import public_base_url
 from tastebuds.playbook import PLAYBOOK
 
 mcp = FastMCP(
     name="Tastebuds",
     instructions=PLAYBOOK,
+    version="0.3.0",
+    website_url=public_base_url(),
 )
 
 # Import tools so they register with the mcp instance

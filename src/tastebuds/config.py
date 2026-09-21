@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     """Application configuration, loaded from environment variables."""
 
     database_url: str
+    # Neon can take a moment to wake up, so a failed connect is tried again with backoff.
+    db_connect_attempts: int = 3
 
     # Public origin of this deployment. The landing page and the agent playbook print it.
     public_base_url: str = "https://tastebuds-production.up.railway.app"
