@@ -50,7 +50,7 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 | `POST /api/v1/<tool>` | REST bridge. Calls `mcp.call_tool`, so REST and MCP share tools and validation. |
 | `/openapi.json` | Built at request time from the MCP tool schemas. |
 | `/llms.txt` | Plain-text setup guide plus playbook, for agents that read pages. |
-| `/` | Landing page for people: pick an assistant, copy one message. |
+| `/` | Landing page for people: pick an assistant, copy one message. One self-contained file, `web/landing.html`. The look takes its feel from poke.com (paper, serif headline, tactile buttons, a text thread) with its own warm palette, sprout mark, and inline SVG food drawings. It uses no Poke assets. Fonts load from Google Fonts. |
 | `/health` | DB connectivity check. Exempt from the rate limit. |
 
 ### Request flow
