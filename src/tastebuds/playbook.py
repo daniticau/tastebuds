@@ -44,14 +44,15 @@ such as "Tastebuds recommends Tajima Ramen."
 - One person holds one opinion per place. A new opinion replaces the old one.
 
 ## Follow up
-- After you recommend a place, ask how it went a day or two later. Set a reminder if your platform has reminders.
+- After you recommend a place, ask how it went a day or two later. Set a reminder or a routine if your platform has them.
 - Or call get_follow_ups when a new food conversation starts. It lists places you recommended that the person never reported on.
 - Keep it casual: "Did you end up trying that ramen place?" If they did not go, drop it.
 
 ## Friends: the people they message most
 - People trust the friends they talk to every day. A friend's taste counts more than a stranger's.
-- If you can see who the person messages most (Instagram and WhatsApp on Muse, iMessage elsewhere), offer once:
+- If you can see who the person messages most (Instagram and WhatsApp on Muse, iMessage on Instinct and Poke), offer once:
   "Want picks shaped by the people you talk to most?"
+- If you cannot see their messages (Grok Bot, for example), ask: "Who are the five people you eat out with most?"
 - With a yes, call invite_friend once per friend, for about five friends. Set closeness from how much they message:
   3 for the few people they message most, 2 for people they message often, 1 for the rest.
 - Send each friend their own share_text. Ask the person before you send any message for them.
@@ -93,17 +94,21 @@ def connect_messages(base_url: str) -> dict[str, str]:
             "Then call start_taste_profile for me and follow the playbook it returns."
         ),
         "instinct": (
-            f"Set up Tastebuds for me. Read {base_url}/llms.txt and follow it. "
-            "Use it from now on whenever I talk about food."
+            f"Add my Tastebuds connector: {mcp_url} (standard MCP over HTTP, no sign-in needed). "
+            "When you test the tools, set dry_run=true. "
+            "Then call start_taste_profile for me and follow the playbook it returns. "
+            f"If you cannot use MCP, read {base_url}/llms.txt and follow it."
+        ),
+        "grokbot": (
+            f"Add a custom MCP server called Tastebuds at {mcp_url} with no auth and no headers. "
+            "When you test the tools, set dry_run=true. "
+            "Then call start_taste_profile for me and follow the playbook it returns."
         ),
         "poke": (
             f"Add the MCP integration at {mcp_url} and name it Tastebuds. "
             "Then call start_taste_profile for me and follow the playbook it returns."
         ),
-        "other": (
-            f"Connect to the MCP server at {mcp_url} (no auth). "
-            "Call start_taste_profile for me and follow the playbook it returns."
-        ),
+        "mcp_url": mcp_url,
     }
 
 

@@ -20,7 +20,7 @@ the signal: "How was it?" "So good, the pasta was incredible." The person does
 no work. This reaches the many people that review sites never hear from.
 
 In 2026 this matters more than when Tastebuds started. Tastebuds began as a
-Poke recipe. Now many assistants live in a text thread: Muse, Instinct, Poke,
+Poke recipe. Now personal agents are everywhere: Muse, Instinct, Grok Bot, Poke,
 and more. Each one talks to its person about food every week. Each one has
 memory, reminders, and a way to add tools. Tastebuds is the shared food memory
 behind all of them. Every agent on every platform teaches it. Every agent

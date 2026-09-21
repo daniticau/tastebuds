@@ -1,12 +1,20 @@
 from typing import Annotated
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from tastebuds import service
 from tastebuds.identity import resolve_taste_id
 from tastebuds.playbook import PLAYBOOK, REMEMBER_TOKEN
 from tastebuds.server import mcp
-from tastebuds.tools._common import OptionalCity, PriceLevel, ShortTagList, TasteId, safe_tool
+from tastebuds.tools._common import (
+    WRITES,
+    OptionalCity,
+    PriceLevel,
+    ShortTagList,
+    as_list,
+    named,
+    safe_tool,
+)
 
 
 class FavoritePlaceInput(BaseModel):
@@ -20,9 +28,7 @@ class FavoritePlaceInput(BaseModel):
     cuisine_tags: list[str] = Field(default_factory=list, max_length=10)
 
 
-def _to_favorite(value: FavoritePlaceInput | str) -> service.FavoritePlace:
-    if isinstance(value, str):
-        return service.FavoritePlace(name=value)
+def _to_favorite(value: FavoritePlaceInput) -> service.FavoritePlace:
     return service.FavoritePlace(
         name=value.name,
         city=value.city,
@@ -31,15 +37,16 @@ def _to_favorite(value: FavoritePlaceInput | str) -> service.FavoritePlace:
     )
 
 
-@mcp.tool()
+@mcp.tool(title="Start taste profile", annotations=WRITES)
 @safe_tool
 async def start_taste_profile(
     home_city: OptionalCity = None,
     favorite_places: Annotated[
-        list[FavoritePlaceInput | str] | None,
+        list[Annotated[FavoritePlaceInput, BeforeValidator(named)]] | None,
+        BeforeValidator(as_list),
         Field(
             description=(
-                "Two or three places the person already loves. Real places only. "
+                "Two or three places the person already loves, each as {'name': ...}. Real places only. "
                 "Each one counts as a positive opinion and tunes the ranking at once."
             ),
             max_length=8,
@@ -76,7 +83,7 @@ async def start_taste_profile(
     ] = None,
     platform: Annotated[
         str | None,
-        Field(description="Your agent platform, for example 'muse', 'instinct', 'poke'.", max_length=40),
+        Field(description="Your agent platform: 'muse', 'instinct', 'grokbot', or 'poke'.", max_length=40),
     ] = None,
     taste_id: Annotated[
         str | None,

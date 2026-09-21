@@ -4,7 +4,7 @@ A food memory and a crowd-taught recommendation engine for AI assistants.
 
 People text their assistant about food. Tastebuds remembers how each person eats, learns from every meal they mention, and ranks places for them. All of it is anonymous. No reviews. No ratings. No app. See [VISION.md](VISION.md).
 
-Built for the assistants that live in a text thread: [Muse](integrations/muse.md) first, then [Instinct](integrations/instinct.md) and [Poke](integrations/poke.md). Any MCP client works.
+Built and tested for four personal agents: [Muse](integrations/muse.md), [Instinct](integrations/instinct.md), [Grok Bot](integrations/grokbot.md), and [Poke](integrations/poke.md). Any MCP client works.
 
 ## How it works
 
@@ -17,7 +17,7 @@ Built for the assistants that live in a text thread: [Muse](integrations/muse.md
 
 | Surface | URL | For |
 |---|---|---|
-| MCP (streamable HTTP, no auth) | `/mcp` | Muse, Poke, Claude, any MCP client |
+| MCP (streamable HTTP, no auth) | `/mcp` | Muse, Instinct, Grok Bot, Poke, any MCP client |
 | REST bridge | `POST /api/v1/<tool_name>` | Agents with a computer and no MCP client |
 | Agent guide and OpenAPI | `/llms.txt`, `/openapi.json` | Agents that read a page to set themselves up |
 
@@ -48,9 +48,30 @@ The REST bridge runs the MCP tools themselves, so the surfaces cannot drift apar
 
 One person holds one opinion per place. A new opinion replaces the old one. A place the person disliked never comes back. The ranking is pure Python in [ranking.py](src/tastebuds/ranking.py) and has its own unit tests.
 
+## Connector compatibility
+
+Each platform talks to an MCP server in its own way. `tests/test_connectors.py` starts the real server and replays each one over real HTTP:
+
+| Platform | How it connects | What the tests replay |
+|---|---|---|
+| Muse | Writes a client with the official MCP SDK, tests every tool, saves a skill | The SDK client calls all 14 tools once. Every call comes back clean and stores nothing. |
+| Instinct | One text names the server. Keeps one `Mcp-Session-Id` for all calls | A stale session id with no new `initialize`, a bare `Accept` header, loose input, and the REST route |
+| Grok Bot | A name, a URL, optional headers. Probes for OAuth | OAuth probes get 404, no credential challenge, junk headers ignored, old and future protocol versions |
+| Poke | Streamable HTTP, `X-Poke-User-Id` on every request, reads instructions | The playbook arrives as instructions, the user id never comes back, the first recipe's calls still work |
+
+The MCP endpoint is stateless and answers in plain JSON, so a deploy never breaks a client that holds an old session. Tool hints mark reads, writes, and the one delete, so platforms keep silent logging silent.
+
+Aim the same tests at any running server, such as the production image or a staging deploy:
+
+```bash
+TASTEBUDS_TEST_SERVER_URL=https://tastebuds-production.up.railway.app pytest tests/test_connectors.py
+```
+
+Against production this is safe: every write is a dry run, except the one full conversation, which cleans up after itself and only runs when `TASTEBUDS_DATABASE_URL` is set.
+
 ## Friends and closeness
 
-The assistant sees who the person messages most: Instagram and WhatsApp on Muse, iMessage elsewhere. It offers once to link those friends. Each link starts with a one-time invite code that the assistant sends to the friend. The assistant then sends a closeness level: 3 for the few people they message most, 2 for often, 1 for now and then. A level 3 friend's opinion weighs four times a level 1 friend's.
+The assistant sees who the person messages most: Instagram and WhatsApp on Muse, iMessage on Instinct and Poke. An assistant with no view of messages, such as Grok Bot, asks who they eat out with most. It offers once to link those friends. Each link starts with a one-time invite code that the assistant sends to the friend. The assistant then sends a closeness level: 3 for the few people they message most, 2 for often, 1 for now and then. A level 3 friend's opinion weighs four times a level 1 friend's.
 
 The server stores two tokens and a level. It never sees names, numbers, handles, or message counts. Tastebuds does not match contacts by hashed phone numbers, because such hashes are easy to reverse. Friend signals stay off until two friends have joined.
 
@@ -60,7 +81,7 @@ The server stores two tokens and a level. It never sees names, numbers, handles,
 
 | Decision | Without Jev | With Jev |
 |---|---|---|
-| Same restaurant? | Trigram similarity above 0.6 merges. "Tajima" and "Tajima Ramen" (0.54) split. "Pho Hoa" and "Pho Hoa Binh" (0.75) merge. | Jev decides for name matches between 0.25 and 0.85. |
+| Same restaurant? | Trigram similarity above 0.6 merges, then a short-form rule: "Nonna Pia" finds "Nonna Pia Trattoria" when only one place fits. "Pho Hoa" and "Pho Hoa Binh" (0.75) still merge. | Jev decides for name matches between 0.25 and 0.85. |
 | Cuisine of a new place with no tags | Words in the name only | Jev picks from the cuisine list, using the name and the dishes mentioned |
 | Comment identifies a private person? | Regex scrub for emails, phones, links, handles | Jev flags names and the comment is dropped. Off by default. |
 
@@ -130,7 +151,7 @@ Configured for [Railway](https://railway.com/) through [railway.json](railway.js
 4. Set `TASTEBUDS_PUBLIC_BASE_URL` to the public origin of the service. The landing page and `/llms.txt` print it.
 5. Enable the public domain.
 
-Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending migrations apply on their own.
+Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending migrations apply on their own. The Docker image installs exactly what `uv.lock` pins, so production runs the versions the tests ran.
 
 Live endpoints:
 

@@ -7,10 +7,10 @@ from tastebuds.db.queries import get_trending_places
 from tastebuds.identity import resolve_taste_id
 from tastebuds.server import mcp
 from tastebuds.service import NO_CITY_MESSAGE
-from tastebuds.tools._common import OptionalCity, TasteId, safe_tool
+from tastebuds.tools._common import OptionalCity, READS, TasteId, safe_tool
 
 
-@mcp.tool()
+@mcp.tool(title="Popular places lately", annotations=READS)
 @safe_tool
 async def get_trending(
     city: OptionalCity = None,

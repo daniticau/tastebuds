@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A food memory and recommendation engine for AI assistants (Muse first, then Instinct and Poke).
+A food memory and recommendation engine for personal AI agents. Four targets: Muse, Instinct, Grok Bot, and Poke.
 Assistants reach it over MCP or a REST bridge. In conversation the person sees one thing: a short credit, "Tastebuds recommends ...".
 See VISION.md for the philosophy and `integrations/` for per-platform notes.
 
@@ -46,7 +46,7 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 
 | Route | What |
 |---|---|
-| `/mcp` and `/mcp/` | MCP over streamable HTTP. Both paths answer without a redirect. |
+| `/mcp` and `/mcp/` | MCP over streamable HTTP. Stateless, plain JSON answers, any `Accept` header. Both paths answer without a redirect. |
 | `POST /api/v1/<tool>` | REST bridge. Calls `mcp.call_tool`, so REST and MCP share tools and validation. |
 | `/openapi.json` | Built at request time from the MCP tool schemas. |
 | `/llms.txt` | Plain-text setup guide plus playbook, for agents that read pages. |
@@ -76,7 +76,7 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 - `taxonomy.py` — cuisine synonyms and parents, dietary and occasion vocab, cuisine inference from place names
 - `privacy.py` — scrubs emails, phones, links, handles from free text
 - `normalizer.py` — place, city, dish normalization; `is_generic_name` rejects "that thai place"
-- `ratelimit.py` — ASGI rate limit keyed by `X-Real-IP`, then the last `X-Forwarded-For` hop (the one the proxy appends)
+- `ratelimit.py` — ASGI rate limit keyed by `X-Real-IP`, then the last `X-Forwarded-For` hop (the one the proxy appends). A hashed `X-Poke-User-Id` gives each Poke user a bucket; a tenfold per-address cap stops faked ids.
 - `migrations/` — sequential SQL files. `migrate.py` backfill detection only covers 001-003.
 
 ### Data flow for feedback
@@ -99,11 +99,16 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 - **Circles**: signals only show when the circle has `circle_min_members` (3) or more. Counts only.
 - **Jev is optional and never blocking**: one request, no retry, 1.5 s timeout, any failure → None → fixed rule. Tests use `httpx.MockTransport`; the wire format comes from docs.typesafe.ai and was not checked against the live API. The comment check is off by default because it sends comment text to a third party.
 - **Degraded mode**: app starts even if DB is unreachable (logs warning, `/health` returns 503).
-- **Stateless HTTP**: `FASTMCP_STATELESS_HTTP=true` in production (set in Dockerfile).
+- **Stateless, plain JSON MCP**: set in code in `create_app()` (`stateless_http=True, json_response=True`), not by env var. Instinct keeps one `Mcp-Session-Id` forever, and a stateful server would answer 404 to it after every deploy. Do not make the endpoint stateful.
+- **Forgive hand-written clients**: `McpClientToleranceMiddleware` rewrites the `Accept` header and the trailing slash. Tool inputs accept `"a, b"` for a list and `"Tajima"` for `{"name": "Tajima"}` through `BeforeValidator`, while the advertised schema stays simple: no `$ref`, no unions inside arrays.
+- **Tool hints**: every tool has a title and annotations (`READS`, `WRITES`, `DELETES` in `tools/_common.py`). Platforms use them to decide when to ask the person first. Only `delete_taste_profile` is destructive. A wrong hint would make silent logging prompt the person.
+- **Platform user headers are not identity**: `X-Poke-User-Id` reaches every integration a person installs, so it is not a secret. It feeds the rate limit only, hashed and in memory. Never store it or derive the taste token from it.
+- **Locked builds**: the Dockerfile runs `uv sync --frozen`. Before this, the image installed the newest `fastmcp`, which jumped a major version past what the tests covered. Upgrade with `uv lock --upgrade-package`, run the suite, then deploy.
 
 ## Testing
 
 - Unit tests run without a database: ranking, taxonomy, identity, privacy, profile merge, normalizer, Jev client (`test_decisions.py`), HTTP surface (`test_http.py` uses dry runs), smoke.
 - Integration tests (`test_integration.py`) are marked `@pytest.mark.integration`. Each test gets a `world` fixture: one random city plus tokens, all deleted afterward.
 - `pytest-asyncio` with `asyncio_mode = "auto"` — async tests just work
+- `tests/test_connectors.py` starts the server as a subprocess and replays Muse, Instinct, Grok Bot, and Poke over real HTTP. Set `TASTEBUDS_TEST_SERVER_URL` to aim it at a running server such as the Docker image. When a platform's behavior changes, change its class there first.
 - The MCP session manager runs once per app instance. Tests that need a running app call `create_app()`; do not reuse `main.app` across `TestClient` contexts.

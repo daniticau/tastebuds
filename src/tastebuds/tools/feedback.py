@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, BeforeValidator, Field
 
 from tastebuds import service
 from tastebuds.db.queries import DishOpinion
@@ -14,6 +14,9 @@ from tastebuds.tools._common import (
     PriceLevel,
     ShortTagList,
     TasteId,
+    WRITES,
+    as_list,
+    named,
     safe_tool,
 )
 
@@ -28,13 +31,11 @@ class DishInput(BaseModel):
     )
 
 
-def _to_dish(value: DishInput | str) -> DishOpinion:
-    if isinstance(value, str):
-        return DishOpinion(name=value)
+def _to_dish(value: DishInput) -> DishOpinion:
     return DishOpinion(name=value.name, sentiment=value.sentiment)
 
 
-@mcp.tool()
+@mcp.tool(title="Log how a meal went", annotations=WRITES)
 @safe_tool
 async def log_feedback(
     place_name: Annotated[
@@ -63,7 +64,8 @@ async def log_feedback(
         Field(description="Cuisine types, for example ['thai', 'noodles']. Infer them."),
     ] = None,
     dishes: Annotated[
-        list[DishInput | str] | None,
+        list[Annotated[DishInput, BeforeValidator(named)]] | None,
+        BeforeValidator(as_list),
         Field(
             description=(
                 "Dishes the person mentioned, each with its own sentiment. "

@@ -1,10 +1,10 @@
 from tastebuds.db import profiles
 from tastebuds.identity import resolve_taste_id
 from tastebuds.server import mcp
-from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, safe_tool
+from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, WRITES, safe_tool
 
 
-@mcp.tool()
+@mcp.tool(title="Meals to ask about", annotations=WRITES)
 @safe_tool
 async def get_follow_ups(taste_id: TasteId = None) -> dict:
     """List places you recommended that the person never reported on.

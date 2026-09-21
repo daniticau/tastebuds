@@ -87,3 +87,25 @@ class TestCityAndDish:
 
         assert normalize_dish("The Spicy Miso Ramen!") == normalize_dish("spicy miso ramen")
         assert normalize_dish("") == ""
+
+
+class TestShortForms:
+    def test_short_names_people_really_use(self):
+        from tastebuds.normalizer import is_short_form
+
+        assert is_short_form("nonna pia", "nonna pia trattoria")
+        assert is_short_form("tajima ramen house", "tajima")
+        assert is_short_form("din tai fung", "din tai fung utc")
+
+    def test_generic_or_tiny_words_are_not_enough(self):
+        from tastebuds.normalizer import is_short_form
+
+        assert not is_short_form("thai", "golden lotus thai")
+        assert not is_short_form("the taco", "the taco stand")
+        assert not is_short_form("pho hoa", "pho hoa binh noodle")
+
+    def test_different_names_are_not_short_forms(self):
+        from tastebuds.normalizer import is_short_form
+
+        assert not is_short_form("golden lotus", "golden dragon")
+        assert not is_short_form("", "tajima")

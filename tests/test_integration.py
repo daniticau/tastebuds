@@ -106,6 +106,18 @@ class TestPlaces:
         assert row["latitude"] == pytest.approx(32.75)
         assert {"thai", "pad thai"} <= set(row["cuisine_tags"])
 
+    async def test_a_short_form_finds_the_one_place_it_can_mean(self, world):
+        full_id, _ = await find_or_create_place(name="Nonna Pia Trattoria", city=world.city)
+        short_id, short_name = await find_or_create_place(name="nonna pia", city=world.city)
+        assert (short_id, short_name) == (full_id, "Nonna Pia Trattoria")
+
+    async def test_a_short_form_that_fits_two_places_is_not_guessed(self, world):
+        first_id, _ = await find_or_create_place(name="Casa Oaxaca Centro Mercado", city=world.city)
+        second_id, _ = await find_or_create_place(name="Casa Oaxaca Playa Hermosa", city=world.city)
+        assert first_id != second_id
+        third_id, _ = await find_or_create_place(name="Oaxaca", city=world.city)
+        assert third_id not in (first_id, second_id)
+
     async def test_generic_name_is_rejected(self, world):
         with pytest.raises(ValueError):
             await find_or_create_place(name="restaurant", city=world.city)

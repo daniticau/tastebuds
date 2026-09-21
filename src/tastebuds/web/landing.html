@@ -124,7 +124,7 @@
   }
   @media (max-width: 480px) {
     .platforms { display: grid; grid-template-columns: repeat(4, 1fr); }
-    .platforms .btn { padding: 0 4px; font-size: 15px; }
+    .platforms .btn { padding: 0 2px; font-size: 14px; }
   }
   .btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 3px; }
   @media (prefers-reduced-motion: reduce) {
@@ -149,13 +149,14 @@
     <div class="platforms" role="group" aria-label="Assistant">
       <button class="btn btn-light" type="button" data-platform="muse" aria-pressed="true">Muse</button>
       <button class="btn btn-light" type="button" data-platform="instinct" aria-pressed="false">Instinct</button>
+      <button class="btn btn-light" type="button" data-platform="grokbot" aria-pressed="false">Grok Bot</button>
       <button class="btn btn-light" type="button" data-platform="poke" aria-pressed="false">Poke</button>
-      <button class="btn btn-light" type="button" data-platform="other" aria-pressed="false">Other</button>
     </div>
     <p class="message" id="message"></p>
     <button class="btn btn-dark" type="button" id="copy">Copy message</button>
     <span id="copy-status" role="status" aria-live="polite" style="position:absolute;left:-9999px"></span>
     <p class="hint" id="hint"></p>
+    <p class="hint">Another assistant? Any MCP client works. Give it this server: <span id="mcp-url"></span></p>
   </section>
 
   <h2>What happens next</h2>
@@ -184,9 +185,9 @@
   const MESSAGES = __MESSAGES_JSON__;
   const HINTS = {
     muse: "Muse builds the connection, tests it, and saves it as a skill. It takes about a minute.",
-    instinct: "Instinct reads the guide and sets itself up. No settings page is needed.",
+    instinct: "Instinct adds the connector from this one text. No settings page is needed.",
+    grokbot: "You can also add it under Settings, then Plugins, as a custom connector: a name and the URL.",
     poke: "You can also add the integration yourself under Settings, then Connections, in Poke.",
-    other: "This works for any assistant that supports MCP servers, such as Claude or ChatGPT.",
   };
   const message = document.getElementById("message");
   const hint = document.getElementById("hint");
@@ -225,6 +226,7 @@
     setTimeout(() => { copy.textContent = "Copy message"; copyStatus.textContent = ""; }, 1800);
   });
 
+  document.getElementById("mcp-url").textContent = MESSAGES.mcp_url;
   select("muse");
 </script>
 </body>

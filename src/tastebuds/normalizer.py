@@ -112,6 +112,27 @@ def is_generic_name(name: str) -> bool:
     return all(word in generic for word in words)
 
 
+_MIN_DISTINCTIVE_WORD_LENGTH = 4
+
+
+def is_short_form(first: str, second: str) -> bool:
+    """True when one normalized name is a short form of the other.
+
+    People say "Nonna Pia" for "Nonna Pia Trattoria" and "Tajima" for "Tajima Ramen".
+    Every word of the shorter name must appear in the longer one, and at least one of
+    those words must be distinctive. "Thai" alone is not a short form of "Golden Lotus Thai".
+    """
+    first_words, second_words = set(first.split()), set(second.split())
+    shorter, longer = sorted((first_words, second_words), key=len)
+    if not shorter or not shorter <= longer:
+        return False
+
+    common = _SUFFIXES | _GENERIC_NAME_WORDS | cuisine_words()
+    return any(
+        len(word) >= _MIN_DISTINCTIVE_WORD_LENGTH and word not in common for word in shorter
+    )
+
+
 def normalize_city(city: str) -> str:
     """Normalize a city name: lowercase, strip state suffixes, resolve nicknames."""
     if not city:

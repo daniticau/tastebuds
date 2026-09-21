@@ -6,7 +6,7 @@ from tastebuds.config import get_settings, public_base_url
 from tastebuds.db import friends
 from tastebuds.identity import resolve_taste_id, sanitize_friend_invite_code, sanitize_invite_code
 from tastebuds.server import mcp
-from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, safe_tool
+from tastebuds.tools._common import NEEDS_TASTE_ID, TasteId, WRITES, safe_tool
 
 Closeness = Annotated[
     int,
@@ -46,7 +46,7 @@ def _signal_message(friend_count: int) -> str:
     )
 
 
-@mcp.tool()
+@mcp.tool(title="Invite a friend", annotations=WRITES)
 @safe_tool
 async def invite_friend(
     closeness: Closeness = 2,
@@ -83,7 +83,7 @@ async def invite_friend(
     }
 
 
-@mcp.tool()
+@mcp.tool(title="Accept a friend invite", annotations=WRITES)
 @safe_tool
 async def accept_friend_invite(
     invite_code: FriendCode,
@@ -104,7 +104,7 @@ async def accept_friend_invite(
     return {"success": True, "friend_ref": code, "message": _signal_message(friend_count)}
 
 
-@mcp.tool()
+@mcp.tool(title="Update a friend link", annotations=WRITES)
 @safe_tool
 async def update_friend(
     friend_ref: FriendCode,

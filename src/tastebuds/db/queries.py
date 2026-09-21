@@ -13,7 +13,13 @@ from tastebuds.db.models import (
     SearchResult,
     TrendingResult,
 )
-from tastebuds.normalizer import is_generic_name, normalize_city, normalize_dish, normalize_name
+from tastebuds.normalizer import (
+    is_generic_name,
+    is_short_form,
+    normalize_city,
+    normalize_dish,
+    normalize_name,
+)
 from tastebuds.ranking import (
     Candidate,
     QueryContext,
@@ -529,12 +535,13 @@ async def _match_similar_place(
 
     A strong name match decides alone. In the gray zone a name match cannot tell
     "Tajima" from "Tajima Ramen House" or "Pho Hoa" from "Pho Hoa Binh", so Jev decides.
-    When Jev is off or gives no answer, the fixed threshold decides, as it always did.
+    When Jev is off or gives no answer, two fixed rules decide: the similarity threshold,
+    then the short-form rule.
     """
     settings = get_settings()
     similar = await pool.fetch(
         """
-        SELECT id, canonical_name, neighborhood, cuisine_tags,
+        SELECT id, canonical_name, name_normalized, neighborhood, cuisine_tags,
             similarity(name_normalized, $1) AS sim
         FROM places
         WHERE city = $2 AND similarity(name_normalized, $1) > $3
@@ -568,6 +575,12 @@ async def _match_similar_place(
         return (similar[decision.same_as] if decision.same_as is not None else None), cuisine
     if best and best["sim"] > settings.fuzzy_match_threshold:
         return best, cuisine
+
+    # A short form of exactly one known place: "Nonna Pia" for "Nonna Pia Trattoria".
+    # Two matches would be a guess, so then the engine creates a new place instead.
+    short_forms = [row for row in similar if is_short_form(normalized_name, row["name_normalized"])]
+    if len(short_forms) == 1:
+        return short_forms[0], cuisine
     return None, cuisine
 
 

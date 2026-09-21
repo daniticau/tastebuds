@@ -60,8 +60,9 @@ class TestPages:
         assert response.status_code == 200
         assert "text/html" in response.headers["content-type"]
         assert "__MESSAGES_JSON__" not in response.text
-        for platform in ("muse", "instinct", "poke", "other"):
+        for platform in ("muse", "instinct", "grokbot", "poke"):
             assert f'"{platform}"' in response.text
+            assert f'data-platform="{platform}"' in response.text
         assert "/mcp" in response.text
 
     def test_llms_txt_tells_an_agent_how_to_connect(self, client):
@@ -247,6 +248,25 @@ class TestRateLimit:
         client = self._limited_app(per_minute=1, trust_proxy_headers=False)
         assert client.get("/ping", headers={"X-Forwarded-For": "203.0.113.1"}).status_code == 200
         assert client.get("/ping", headers={"X-Forwarded-For": "203.0.113.2"}).status_code == 429
+
+    def test_each_poke_user_has_their_own_budget(self):
+        client = self._limited_app(per_minute=1)
+        ana = {"X-Forwarded-For": "198.51.100.7", "X-Poke-User-Id": "11111111-1111-4111-8111-111111111111"}
+        ben = {"X-Forwarded-For": "198.51.100.7", "X-Poke-User-Id": "22222222-2222-4222-8222-222222222222"}
+        assert client.get("/ping", headers=ana).status_code == 200
+        assert client.get("/ping", headers=ana).status_code == 429
+        assert client.get("/ping", headers=ben).status_code == 200
+
+    def test_faked_user_ids_cannot_dodge_the_address_cap(self):
+        client = self._limited_app(per_minute=1)  # address cap is ten times that
+        statuses = [
+            client.get(
+                "/ping",
+                headers={"X-Forwarded-For": "198.51.100.8", "X-Poke-User-Id": f"fake-{number}"},
+            ).status_code
+            for number in range(12)
+        ]
+        assert statuses == [200] * 10 + [429] * 2
 
     def test_health_check_is_never_limited(self):
         client = self._limited_app(per_minute=1)

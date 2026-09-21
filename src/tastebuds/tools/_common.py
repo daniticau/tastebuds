@@ -5,7 +5,8 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import Annotated
 
-from pydantic import Field, ValidationError
+from mcp.types import ToolAnnotations
+from pydantic import BeforeValidator, Field, ValidationError
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,33 @@ PriceLevel = Annotated[
 ]
 Latitude = Annotated[float | None, Field(description="Latitude, when known.", ge=-90, le=90)]
 Longitude = Annotated[float | None, Field(description="Longitude, when known.", ge=-180, le=180)]
-ShortTagList = Annotated[list[str] | None, Field(max_length=10)]
+
+
+def as_list(value: object) -> object:
+    """Forgive the two most common agent mistakes: one item instead of a list, and 'a, b' text."""
+    if isinstance(value, str):
+        return [part.strip() for part in value.split(",") if part.strip()]
+    if isinstance(value, dict):
+        return [value]
+    return value
+
+
+def named(value: object) -> object:
+    """Let an agent send 'Tajima Ramen' where the schema asks for {'name': 'Tajima Ramen'}."""
+    return {"name": value} if isinstance(value, str) else value
+
+
+ShortTagList = Annotated[list[str] | None, BeforeValidator(as_list), Field(max_length=10)]
+
+# Platforms read these hints to decide when to ask the person before a call.
+# Accurate hints keep silent logging silent, and keep a confirmation on the one call that needs it.
+READS = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=False)
+WRITES = ToolAnnotations(
+    readOnlyHint=False, destructiveHint=False, idempotentHint=False, openWorldHint=False,
+)
+DELETES = ToolAnnotations(
+    readOnlyHint=False, destructiveHint=True, idempotentHint=True, openWorldHint=False,
+)
 
 
 def safe_tool[**P](fn: Callable[P, Awaitable[dict]]) -> Callable[P, Awaitable[dict]]:
