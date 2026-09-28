@@ -19,15 +19,15 @@ ICON_SVG = """\
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#C7764F"/>
-      <stop offset="1" stop-color="#93492E"/>
+      <stop offset="0" stop-color="#2E2823"/>
+      <stop offset="1" stop-color="#1B1714"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <g fill="#FFF6EA" transform="translate(96 74) scale(13.3333)">
-    <path d="M3.5 13.2H20.5A8.5 8.5 0 0 1 3.5 13.2Z"/>
-    <path d="M12 11.6C8.4 11.6 6.2 9.4 6.2 5.6C9.8 5.6 12 7.8 12 11.6Z"/>
-    <path d="M12 11.6C15.6 11.6 17.8 9.4 17.8 5.6C14.2 5.6 12 7.8 12 11.6Z"/>
+  <g transform="translate(88 84) scale(14)">
+    <path fill="#E8755A" d="M6.8 8H17.2V14.6A5.2 5.2 0 0 1 6.8 14.6Z"/>
+    <path fill="none" stroke="#000" stroke-opacity=".24" stroke-width="1.3" stroke-linecap="round" d="M12 9.8V14.4"/>
+    <rect fill="#FBF3E8" x="3" y="4.4" width="18" height="3.6" rx="1.8"/>
   </g>
 </svg>
 """

@@ -24,7 +24,7 @@ It works in the background. The person rarely sees Tastebuds. They notice that t
 | Agent guide and OpenAPI | `/llms.txt`, `/openapi.json` | Agents that read a page to set themselves up |
 | Docs, privacy, terms, icon | `/docs`, `/privacy`, `/terms`, `/icon.svg` | People, and Meta's connector review |
 
-The landing page speaks of "your agent". Its connect buttons show each platform's logo when you place the official file in [src/tastebuds/web/logos/](src/tastebuds/web/logos/README.md). The repo ships no third-party logos.
+The landing page speaks of "your agent". Its connect buttons show each platform's logo from [src/tastebuds/web/logos/](src/tastebuds/web/logos/README.md). Each logo belongs to its platform and is there only to name it.
 
 The REST bridge runs the MCP tools themselves, so the surfaces cannot drift apart.
 

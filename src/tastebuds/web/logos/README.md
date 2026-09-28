@@ -1,21 +1,21 @@
 # Platform logos
 
 The connect buttons on the landing page show one logo per agent platform.
-Put the official logo files here. The page picks them up on the next request.
+The page picks a file up on the next request.
 
 | File name | Platform |
 |---|---|
-| `muse.svg` | Muse |
-| `instinct.svg` | Instinct |
-| `grokbot.svg` | Grok Bot |
-| `poke.svg` | Poke |
+| `muse.png` | Muse |
+| `instinct.png` | Instinct |
+| `grokbot.png` | Grok Bot |
+| `poke.png` | Poke |
 
-`.png` and `.webp` work too. A square mark works best. The page shows it at 18 by 18
-pixels on a white tile, so the mark reads on the dark and the light button.
-
-A platform with no file shows its first letter.
+`.svg` and `.webp` work too. Use a square image. It fills a 24 by 24 pixel tile
+with rounded corners, so keep some room around the mark. A platform with no file
+shows its first letter.
 
 ## Where the files come from
 
-Take each logo from the platform's own press kit or brand page, and follow its rules
-for use. A logo belongs to its owner. This repo ships none of them.
+The site owner supplied these four files. Each logo belongs to its platform.
+It is here only to name the platform on its connect button. Follow each
+platform's brand rules, and remove a logo if its owner asks.

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tastebuds</title>
 <meta name="description" content="Give your agent a memory for food, and see where your friends like to eat. One text to connect. No account.">
-<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/icon.svg?v=3" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
@@ -19,6 +19,7 @@
     --muted: #6B6358;
     --line: rgb(37 32 27 / 11%);
     --accent: #A65A3C;
+    --tongue: #DB6449;
     --focus: #2B59FF;
     --sky-top: #F0C19B;
     --sky-mid: #F6DDC4;
@@ -56,6 +57,7 @@
       --muted: #ADA397;
       --line: rgb(255 255 255 / 12%);
       --accent: #D08563;
+      --tongue: #E57B60;
       --focus: #8FA8FF;
       --sky-top: #3A2A22;
       --sky-mid: #2E231D;
@@ -116,7 +118,7 @@
     justify-content: space-between;
   }
   .brand { display: inline-flex; align-items: center; gap: 8px; font-family: var(--serif); font-size: 23px; font-weight: 600; letter-spacing: -0.03em; }
-  .brand svg { width: 24px; height: 24px; color: var(--accent); }
+  .brand svg { width: 26px; height: 26px; color: var(--ink); }
   .nav-links { display: flex; align-items: center; gap: 22px; font-size: 15px; font-weight: 500; }
   .nav-links a.text { opacity: 0.82; }
   .nav-links a.text:hover { opacity: 1; }
@@ -150,8 +152,8 @@
   .status { display: flex; justify-content: space-between; align-items: center; font-size: 14px; font-weight: 500; padding: 0 12px; }
   .island { width: 92px; height: 26px; border-radius: 20px; background: #000; }
   .contact { display: flex; flex-direction: column; align-items: center; gap: 5px; margin: 14px 0 16px; font-size: 13px; font-weight: 500; }
-  .avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(180deg, #C0714F, #8F4A30); color: #FFF6EA; }
-  .avatar svg { width: 23px; height: 23px; }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: linear-gradient(180deg, #2E2823, #1B1714); color: #FBF3E8; --tongue: #E8755A; }
+  .avatar svg { width: 25px; height: 25px; }
   .thread { display: flex; flex-direction: column; gap: 7px; font-size: 14.5px; line-height: 1.32; }
   .bubble { max-width: 82%; padding: 8px 13px; border-radius: 19px; }
   .bubble.in { align-self: flex-start; background: var(--bubble-in); color: var(--bubble-in-ink); border-bottom-left-radius: 6px; }
@@ -197,7 +199,7 @@
   }
   .platforms { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 16px; }
   .platforms .btn { gap: 9px; padding-left: 11px; }
-  /* Each agent's logo sits on a light tile, so it reads on the dark and the light button. */
+  /* Each agent's logo fills a small tile, so it reads on the dark and the light button. */
   .logo {
     width: 24px;
     height: 24px;
@@ -211,7 +213,7 @@
     color: #26252B;
     font: 600 13px/1 var(--sans);
   }
-  .logo img { width: 18px; height: 18px; object-fit: contain; display: block; }
+  .logo img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .message {
     margin: 0 0 16px;
     padding: 14px 16px;
@@ -384,7 +386,7 @@
 <div class="sky">
   <nav>
     <a class="brand" href="/" aria-label="Tastebuds home">
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.5 13.2H20.5A8.5 8.5 0 0 1 3.5 13.2Z"/><path d="M12 11.6C8.4 11.6 6.2 9.4 6.2 5.6C9.8 5.6 12 7.8 12 11.6Z"/><path d="M12 11.6C15.6 11.6 17.8 9.4 17.8 5.6C14.2 5.6 12 7.8 12 11.6Z"/></svg>
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path fill="var(--tongue)" d="M6.8 8H17.2V14.6A5.2 5.2 0 0 1 6.8 14.6Z"/><path fill="none" stroke="#000" stroke-opacity=".24" stroke-width="1.3" stroke-linecap="round" d="M12 9.8V14.4"/><rect x="3" y="4.4" width="18" height="3.6" rx="1.8"/></svg>
       Tastebuds
     </a>
     <div class="nav-links">
@@ -424,7 +426,7 @@
       <div class="screen" aria-hidden="true">
         <div class="status"><span>9:41</span><span class="island"></span><span>5G</span></div>
         <div class="contact">
-          <span class="avatar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M3.5 13.2H20.5A8.5 8.5 0 0 1 3.5 13.2Z"/><path d="M12 11.6C8.4 11.6 6.2 9.4 6.2 5.6C9.8 5.6 12 7.8 12 11.6Z"/><path d="M12 11.6C15.6 11.6 17.8 9.4 17.8 5.6C14.2 5.6 12 7.8 12 11.6Z"/></svg></span>
+          <span class="avatar"><svg viewBox="0 0 24 24" fill="currentColor"><path fill="var(--tongue)" d="M6.8 8H17.2V14.6A5.2 5.2 0 0 1 6.8 14.6Z"/><path fill="none" stroke="#000" stroke-opacity=".24" stroke-width="1.3" stroke-linecap="round" d="M12 9.8V14.4"/><rect x="3" y="4.4" width="18" height="3.6" rx="1.8"/></svg></span>
           your agent
         </div>
         <div class="thread">
