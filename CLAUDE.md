@@ -50,7 +50,8 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 | `POST /api/v1/<tool>` | REST bridge. Calls `mcp.call_tool`, so REST and MCP share tools and validation. |
 | `/openapi.json` | Built at request time from the MCP tool schemas. |
 | `/llms.txt` | Plain-text setup guide plus playbook, for agents that read pages. |
-| `/` | Landing page for people: pick an assistant, copy one message. One self-contained file, `web/landing.html`. The look takes its feel from poke.com (paper, serif headline, tactile buttons, a text thread) with its own warm palette, sprout mark, and inline SVG food drawings. It uses no Poke assets. Fonts load from Google Fonts. |
+| `/` | Landing page for people. It speaks of "your agent", never of one platform. The platform buttons only pick the connect message. One self-contained file, `web/landing.html`. The look takes its feel from poke.com (paper, serif headline, tactile buttons, a text thread) with its own warm palette, a bowl-and-sprout mark, and inline SVG food drawings. Keep small captions rare: a heading should stand without a line of grey text under it. Fonts load from Google Fonts. |
+| `/logos/<platform>.<svg,png,webp>` | Platform logos for the connect buttons. The site owner places the files in `web/logos/`. The repo ships none, because each logo belongs to its owner. A platform with no file shows its first letter. |
 | `/docs`, `/privacy`, `/terms`, `/icon.svg` | Pages the Muse connector form asks for. Content lives in `pages.py`, on the shared template `web/page.html`. |
 | `/health` | DB connectivity check. Exempt from the rate limit. |
 
