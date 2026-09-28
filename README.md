@@ -71,7 +71,7 @@ The MCP endpoint is stateless and answers in plain JSON, so a deploy never break
 Aim the same tests at any running server, such as the production image or a staging deploy:
 
 ```bash
-TASTEBUDS_TEST_SERVER_URL=https://tastebuds-production.up.railway.app pytest tests/test_connectors.py
+TASTEBUDS_TEST_SERVER_URL=https://tastebuds.daniticau.com pytest tests/test_connectors.py
 ```
 
 Against production this is safe: every write is a dry run, except the one full conversation, which cleans up after itself and only runs when `TASTEBUDS_DATABASE_URL` is set.
@@ -159,16 +159,16 @@ Configured for [Railway](https://railway.com/) through [railway.json](railway.js
 1. Create a Neon project and copy the connection string.
 2. In Railway, create a service from this repo.
 3. Set `TASTEBUDS_DATABASE_URL` to the Neon connection string.
-4. Set `TASTEBUDS_PUBLIC_BASE_URL` to the public origin of the service. The landing page and `/llms.txt` print it.
-5. Enable the public domain.
+4. Set `TASTEBUDS_PUBLIC_BASE_URL` when the origin differs from the default, `https://tastebuds.daniticau.com`. The landing page and `/llms.txt` print it.
+5. Add the custom domain `tastebuds.daniticau.com` to the service. Railway shows a CNAME target. Add that record where the DNS for `daniticau.com` lives, which is Vercel.
 
 Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending migrations apply on their own. The Docker image installs exactly what `uv.lock` pins, so production runs the versions the tests ran.
 
-Live endpoints:
+Production addresses, once the service runs at `tastebuds.daniticau.com`:
 
-- Landing page: `https://tastebuds-production.up.railway.app/`
-- MCP: `https://tastebuds-production.up.railway.app/mcp`
-- Health: `https://tastebuds-production.up.railway.app/health`
+- Landing page: `https://tastebuds.daniticau.com/`
+- MCP: `https://tastebuds.daniticau.com/mcp`
+- Health: `https://tastebuds.daniticau.com/health`
 
 ## Privacy
 

@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     db_connect_attempts: int = 3
 
     # Public origin of this deployment. The landing page and the agent playbook print it.
-    public_base_url: str = "https://tastebuds-production.up.railway.app"
+    public_base_url: str = "https://tastebuds.daniticau.com"
 
     # Place dedup. At or above auto-merge, the name match alone decides.
     # Between the review floor and auto-merge, Jev decides when it is configured.
