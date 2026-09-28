@@ -23,6 +23,10 @@ from tastebuds.server import mcp
 logger = logging.getLogger(__name__)
 
 _LANDING_TEMPLATE = (Path(__file__).parent / "web" / "landing.html").read_text(encoding="utf-8")
+# Official logos of the agent platforms. The site owner adds the files. See web/logos/README.md.
+_LOGO_DIR = Path(__file__).parent / "web" / "logos"
+_LOGO_TYPES = {".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"}
+_PLATFORMS = ("muse", "instinct", "grokbot", "poke")
 _MAX_API_BODY_BYTES = 64_000
 _API_PREFIX = "/api/v1"
 _VERSION = "0.3.0"
@@ -92,11 +96,43 @@ async def health():
         )
 
 
+def platform_logos() -> dict[str, str]:
+    """Logo files found in web/logos, as platform -> address. The first type found wins."""
+    found = {}
+    for platform in _PLATFORMS:
+        for extension in _LOGO_TYPES:
+            if (_LOGO_DIR / f"{platform}{extension}").is_file():
+                found[platform] = f"/logos/{platform}{extension}"
+                break
+    return found
+
+
 @router.get("/", response_class=HTMLResponse)
 async def landing() -> str:
-    """One page for people: pick your assistant, copy one message, send it."""
+    """One page for people: pick your agent, copy one message, send it."""
     messages = json.dumps(connect_messages(public_base_url())).replace("</", "<\\/")
-    return _LANDING_TEMPLATE.replace("__MESSAGES_JSON__", messages)
+    return _LANDING_TEMPLATE.replace("__MESSAGES_JSON__", messages).replace(
+        "__LOGOS_JSON__", json.dumps(platform_logos()),
+    )
+
+
+@router.get("/logos/{filename}")
+async def logo(filename: str) -> Response:
+    """Serve one platform logo. Only the known names exist, so no path can escape the folder."""
+    if f"/logos/{filename}" not in platform_logos().values():
+        return Response(status_code=404)
+
+    path = _LOGO_DIR / filename
+    return Response(
+        content=path.read_bytes(),
+        media_type=_LOGO_TYPES[path.suffix],
+        headers={
+            "Cache-Control": "public, max-age=86400",
+            # An SVG can hold script. This stops it if someone opens the file directly.
+            "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'",
+            "X-Content-Type-Options": "nosniff",
+        },
+    )
 
 
 @router.get("/privacy", response_class=HTMLResponse)

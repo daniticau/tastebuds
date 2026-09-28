@@ -309,3 +309,51 @@ class TestRateLimit:
     def test_health_check_is_never_limited(self):
         client = self._limited_app(per_minute=1)
         assert [client.get("/health").status_code for _ in range(5)] == [200] * 5
+
+
+class TestPlatformLogos:
+    """The connect buttons show logos that the site owner placed in web/logos."""
+
+    @pytest.fixture()
+    def logo_dir(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(main, "_LOGO_DIR", tmp_path)
+        return tmp_path
+
+    def test_without_files_every_button_falls_back_to_a_letter(self, client, logo_dir):
+        page = client.get("/").text
+        assert "const LOGOS = {};" in page
+        assert "__LOGOS_JSON__" not in page
+        assert page.count('<span class="logo"') == 4
+
+    def test_a_logo_file_shows_up_and_is_served(self, client, logo_dir):
+        (logo_dir / "muse.svg").write_text('<svg xmlns="http://www.w3.org/2000/svg"/>')
+        (logo_dir / "poke.png").write_bytes(b"\x89PNG\r\n")
+
+        page = client.get("/").text
+        assert '"muse": "/logos/muse.svg"' in page and '"poke": "/logos/poke.png"' in page
+
+        served = client.get("/logos/muse.svg")
+        assert served.status_code == 200
+        assert served.headers["content-type"].startswith("image/svg+xml")
+        assert "default-src 'none'" in served.headers["content-security-policy"]
+        assert client.get("/logos/poke.png").headers["content-type"] == "image/png"
+
+    @pytest.mark.parametrize(
+        "name",
+        ["instinct.svg", "unknown.svg", "README.md", "..%2Fpage.html", "muse.svg.bak", "muse.exe"],
+    )
+    def test_nothing_else_in_the_folder_is_served(self, client, logo_dir, name):
+        (logo_dir / "muse.svg").write_text("<svg/>")
+        (logo_dir / "README.md").write_text("notes")
+        (logo_dir / "unknown.svg").write_text("<svg/>")
+        assert client.get(f"/logos/{name}").status_code == 404
+
+    def test_the_front_page_speaks_of_your_agent(self, client):
+        page = client.get("/").text
+        assert "Your agent learns where you and your friends like to eat" in page
+        for gone in (
+            "You never fill in a form",
+            "A memory for food that works in the background",
+            "Tastebuds cannot say who you are",
+        ):
+            assert gone not in page

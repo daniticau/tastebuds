@@ -24,10 +24,10 @@ ICON_SVG = """\
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="116" fill="url(#bg)"/>
-  <g fill="#FFF6EA">
-    <path d="M256 300C150 300 86 236 86 130c106 0 170 64 170 170z"/>
-    <path d="M256 300c0-106 64-170 170-170 0 106-64 170-170 170z"/>
-    <path d="M235 280h42v122a21 21 0 0 1-42 0z"/>
+  <g fill="#FFF6EA" transform="translate(96 74) scale(13.3333)">
+    <path d="M3.5 13.2H20.5A8.5 8.5 0 0 1 3.5 13.2Z"/>
+    <path d="M12 11.6C8.4 11.6 6.2 9.4 6.2 5.6C9.8 5.6 12 7.8 12 11.6Z"/>
+    <path d="M12 11.6C15.6 11.6 17.8 9.4 17.8 5.6C14.2 5.6 12 7.8 12 11.6Z"/>
   </g>
 </svg>
 """
@@ -53,7 +53,7 @@ def _support_email() -> str | None:
 def _contact() -> str:
     email = _support_email()
     if not email:
-        return "<p>Ask your assistant, or reach us through the project page.</p>"
+        return "<p>Ask your agent, or reach us through the project page.</p>"
     safe = escape(email)
     return f'<p>Write to <a href="mailto:{safe}">{safe}</a>. We answer within a few days.</p>'
 
@@ -65,23 +65,23 @@ def privacy_page() -> str:
 <h1>Privacy</h1>
 <p class="updated">Last updated {_UPDATED}</p>
 
-<p>Tastebuds is a food memory for AI assistants. It is built so that it cannot say who you are.
-You have no account. Your assistant holds one random token for you, and Tastebuds keeps your
+<p>Tastebuds is a food memory for your AI agent. It is built so that it cannot say who you are.
+You have no account. Your agent holds one random token for you, and Tastebuds keeps your
 food taste under that token.</p>
 
 <h2>What Tastebuds stores</h2>
 <ul>
-  <li><strong>A random token.</strong> The server makes it. Your assistant keeps it.</li>
-  <li><strong>Your food preferences,</strong> when your assistant sends them: home city, neighborhoods,
+  <li><strong>A random token.</strong> The server makes it. Your agent keeps it.</li>
+  <li><strong>Your food preferences,</strong> when your agent sends them: home city, neighborhoods,
       dietary needs, allergies, cuisines you like and avoid, budget, spice level, the atmosphere you like,
       and a short note.</li>
   <li><strong>Your opinions on places.</strong> For each place: whether you liked it, the dishes you named,
-      the occasion, the price level, and one short comment. Your assistant writes the comment without
+      the occasion, the price level, and one short comment. Your agent writes the comment without
       names or personal details. The server removes emails, phone numbers, links, and handles again.</li>
   <li><strong>Friend links.</strong> Two tokens, a closeness level from 1 to 3 for each side, each side's
       choice to share picks, and the invite code.</li>
   <li><strong>Circles.</strong> A group code and the tokens of its members.</li>
-  <li><strong>What it recommended to you,</strong> so your assistant can ask how it went, and which
+  <li><strong>What it recommended to you,</strong> so your agent can ask how it went, and which
       finds from friends it already told you about.</li>
 </ul>
 
@@ -89,7 +89,7 @@ food taste under that token.</p>
 <ul>
   <li>Your name, email, phone number, or any account.</li>
   <li>Your messages, your contacts, or how often you message anyone.</li>
-  <li>Your friends' names. A friend is a code. Your own assistant turns the code into a name.</li>
+  <li>Your friends' names. A friend is a code. Your own agent turns the code into a name.</li>
   <li>Your location history. A search may include a location. Tastebuds uses it for that one answer.</li>
 </ul>
 
@@ -99,7 +99,7 @@ food taste under that token.</p>
       praise, and short comments with no author.</li>
   <li><strong>A linked friend</strong> sees which places you liked, the dishes you named, and your short
       comment, marked as yours. This happens only when you agreed to the link and chose to share picks.
-      You can stop sharing with one friend, or end a link, at any time. Ask your assistant.</li>
+      You can stop sharing with one friend, or end a link, at any time. Ask your agent.</li>
   <li><strong>A circle</strong> sees counts only, never who said what, and only when the circle has
       three or more members.</li>
 </ul>
@@ -124,9 +124,9 @@ to the database.</p>
 
 <h2>Your choices</h2>
 <ul>
-  <li><strong>See it.</strong> Ask your assistant what it remembers about your food taste.</li>
-  <li><strong>Change it.</strong> Tell your assistant what changed.</li>
-  <li><strong>Delete it.</strong> Ask your assistant to forget your food taste. Tastebuds deletes your profile,
+  <li><strong>See it.</strong> Ask your agent what it remembers about your food taste.</li>
+  <li><strong>Change it.</strong> Tell your agent what changed.</li>
+  <li><strong>Delete it.</strong> Ask your agent to forget your food taste. Tastebuds deletes your profile,
       your friend links, your circle memberships, and your follow-ups. Your past opinions stay in the
       totals for each place, with no token attached.</li>
 </ul>
@@ -150,11 +150,11 @@ def terms_page() -> str:
 <h1>Terms</h1>
 <p class="updated">Last updated {_UPDATED}</p>
 
-<p>These terms cover the Tastebuds service: the server, its tools for AI assistants, and this website.
+<p>These terms cover the Tastebuds service: the server, its tools for AI agents, and this website.
 If you use Tastebuds, you agree to them.</p>
 
 <h2>What Tastebuds is</h2>
-<p>Tastebuds stores food opinions and ranks places to eat. It works through your AI assistant.
+<p>Tastebuds stores food opinions and ranks places to eat. It works through your AI agent.
 A recommendation is an opinion, built from what people said. It is not a promise about any restaurant.</p>
 
 <h2>Allergies and dietary needs</h2>
@@ -222,11 +222,11 @@ def docs_page(tools: list) -> str:
         "Docs",
         f"""
 <h1>Docs</h1>
-<p class="updated">For assistants, for developers, and for connector review. Last updated {_UPDATED}</p>
+<p class="updated">For agents, for developers, and for connector review. Last updated {_UPDATED}</p>
 
-<p>Tastebuds gives an AI assistant a food memory. It remembers how one person eats, learns from each
+<p>Tastebuds gives an AI agent a food memory. It remembers how one person eats, learns from each
 meal they mention, and ranks places for them. Linked friends see where each other like to eat.
-It is built for Muse first. Any MCP client works.</p>
+It works with Muse, Instinct, Grok Bot, Poke, and any MCP client.</p>
 
 <h2>Connect</h2>
 <table>
@@ -240,7 +240,7 @@ It is built for Muse first. Any MCP client works.</p>
 
 <h2>Sign-in</h2>
 <p>There is none. A person has no account. The first call, <code>start_taste_profile</code>, returns a
-random <code>taste_id</code>. The assistant keeps it and passes it on every call, as the
+random <code>taste_id</code>. The agent keeps it and passes it on every call, as the
 <code>taste_id</code> argument or as <code>Authorization: Bearer &lt;taste_id&gt;</code>.
 On a connector form, this is auth type "Other".</p>
 
@@ -279,7 +279,7 @@ preferences. One tool deletes. No tool sends a message, spends money, or acts ou
 {_contact()}
 
 <h2>The playbook</h2>
-<p>This is the guide the assistant follows. The server also returns it from
+<p>This is the guide the agent follows. The server also returns it from
 <code>start_taste_profile</code> and as the MCP instructions.</p>
 <pre><code>{escape(PLAYBOOK)}</code></pre>
 """,
