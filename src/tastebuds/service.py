@@ -4,8 +4,15 @@ from dataclasses import dataclass, field
 
 from tastebuds import decisions
 from tastebuds.config import get_settings
-from tastebuds.db import profiles
-from tastebuds.db.models import FeedbackResult, SearchResult, TasteProfile
+from tastebuds.db import friends, profiles
+from tastebuds.db.client import get_pool
+from tastebuds.db.models import (
+    FeedbackResult,
+    FoodBoard,
+    FriendFind,
+    SearchResult,
+    TasteProfile,
+)
 from tastebuds.db.profiles import ProfileChanges
 from tastebuds.db.queries import (
     DishOpinion,
@@ -15,6 +22,7 @@ from tastebuds.db.queries import (
     search_places,
 )
 from tastebuds.identity import mint_taste_id
+from tastebuds.normalizer import normalize_city
 from tastebuds.privacy import scrub_text
 from tastebuds.taxonomy import (
     normalize_cuisines,
@@ -27,6 +35,8 @@ _MAX_FAVORITES = 8
 _MAX_NOTES_LENGTH = 300
 _MAX_DISH_NAME_LENGTH = 80
 _VALID_SENTIMENTS = {"positive", "negative", "neutral"}
+_BOARD_LIST_SIZE = 8
+_BOARD_TO_TRY_SIZE = 5
 
 NO_CITY_MESSAGE = (
     "No city known. Infer the city from the conversation or ask where they are, then call again."
@@ -37,8 +47,15 @@ NO_PROFILE_NOTE = (
     "and pass it on every call."
 )
 ATTRIBUTION_NOTE = (
-    'Credit these picks in a few words: "Tastebuds recommends <place>." '
-    "Do not recite counts or scores."
+    "Lead with a friend when the friends field has one: turn friend_ref into the name "
+    'from your notes, as in "Maya loved the spicy miso there." '
+    "Credit Tastebuds at most once per conversation, in a few words: "
+    '"Tastebuds recommends <place>." Do not recite counts or scores.'
+)
+BOARD_NOTE = (
+    "Build the view yourself, as a dashboard or a short list. Turn each friend_ref into "
+    "the name from your notes. When you do not know a name, say 'a friend'. Never guess one. "
+    "Show this when the person asks for it. Do not send it on your own."
 )
 FOLLOW_UP_NOTE = (
     "In a day or two, ask casually how it went, then call log_feedback. "
@@ -257,6 +274,7 @@ async def recommend(
     new_places_only: bool = False,
     friends_only: bool = False,
     limit: int = 5,
+    track: bool = True,
 ) -> SearchResult:
     """Rank places for one person and one request."""
     if not city and taste_id:
@@ -281,6 +299,7 @@ async def recommend(
         place_name=place_name,
         new_places_only=new_places_only,
         friends_only=friends_only,
+        track=track,
     )
 
     # Some agents never read the server instructions, so the key rules ride along with the result.
@@ -289,7 +308,56 @@ async def recommend(
         notes.append(ATTRIBUTION_NOTE)
     if not taste_id:
         notes.append(NO_PROFILE_NOTE)
-    elif result.recommendations and not place_name:
+    elif track and result.recommendations and not place_name:
         notes.append(FOLLOW_UP_NOTE)
     result.agent_note = " ".join(notes) or None
     return result
+
+
+async def food_board(taste_id: str, city: str | None) -> FoodBoard:
+    """One snapshot of a person's food world: favorites, friends' picks, and places to try."""
+    city = city or await profiles.get_home_city(taste_id)
+    profile = await profiles.get_profile(taste_id)
+    board = FoodBoard(
+        city=city,
+        your_favorites=await profiles.favorite_places(taste_id, _BOARD_LIST_SIZE),
+        top_cuisines=profile.learned.top_cuisines,
+        dietary=profile.dietary,
+        opinion_count=profile.learned.opinion_count,
+        friend_count=len(profile.friends),
+        agent_note=BOARD_NOTE,
+    )
+    if not city:
+        return board
+
+    pool = await get_pool()
+    loved = await friends.places_friends_love(
+        pool,
+        taste_id,
+        normalize_city(city),
+        fresh_days=None,
+        skip_already_told=False,
+        limit=_BOARD_LIST_SIZE,
+    )
+    opinions = await friends.friend_opinions(pool, taste_id, [place.place_id for place in loved])
+    board.from_friends = [
+        FriendFind(
+            name=place.name,
+            city=place.city,
+            neighborhood=place.neighborhood,
+            cuisine_tags=place.cuisine_tags,
+            friends=opinions.get(place.place_id, []),
+        )
+        for place in loved
+    ]
+
+    # A board is a view, not a recommendation: no follow-up bookkeeping.
+    to_try = await recommend(
+        city=city,
+        taste_id=taste_id,
+        new_places_only=True,
+        limit=_BOARD_TO_TRY_SIZE,
+        track=False,
+    )
+    board.to_try = to_try.recommendations
+    return board

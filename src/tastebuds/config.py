@@ -45,6 +45,12 @@ class Settings(BaseSettings):
     # Friend signals need this many linked friends, for the same reason.
     friend_min_ties: int = 2
     friend_invite_days: int = 14
+    # Friends' finds. The server holds the bar for a message, so no agent can nag.
+    friend_find_fresh_days: int = 30
+    friend_nudge_cooldown_days: int = 6
+
+    # Shown on the privacy, terms, and docs pages. The Muse connector form asks for it.
+    support_email: str | None = None
 
     # Follow-ups
     followup_min_age_hours: int = 3

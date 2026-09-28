@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What This Is
 
-A food memory and recommendation engine for personal AI agents. Four targets: Muse, Instinct, Grok Bot, and Poke.
-Assistants reach it over MCP or a REST bridge. In conversation the person sees one thing: a short credit, "Tastebuds recommends ...".
-See VISION.md for the philosophy and `integrations/` for per-platform notes.
+A food memory and recommendation engine for personal AI agents. Muse is the main target. Instinct, Grok Bot, and Poke are secondary.
+Assistants reach it over MCP or a REST bridge. It works in the background: the person rarely sees Tastebuds, and picks come with a friend's name.
+See VISION.md for the philosophy, `integrations/muse.md` for how it lives in the Muse app, and `integrations/muse-submission.md` for Meta's connector form.
 
 ## Commands
 
@@ -38,7 +38,7 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 
 ## Architecture
 
-- **Server**: Python 3.12, FastAPI + FastMCP v3.x
+- **Server**: Python 3.12, FastAPI + FastMCP v4.x
 - **Database**: Neon PostgreSQL with `pg_trgm` for fuzzy name matching
 - **Deploy**: Railway via Dockerfile + `railway.json`, pre-deploy runs migrations automatically
 
@@ -51,6 +51,7 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 | `/openapi.json` | Built at request time from the MCP tool schemas. |
 | `/llms.txt` | Plain-text setup guide plus playbook, for agents that read pages. |
 | `/` | Landing page for people: pick an assistant, copy one message. One self-contained file, `web/landing.html`. The look takes its feel from poke.com (paper, serif headline, tactile buttons, a text thread) with its own warm palette, sprout mark, and inline SVG food drawings. It uses no Poke assets. Fonts load from Google Fonts. |
+| `/docs`, `/privacy`, `/terms`, `/icon.svg` | Pages the Muse connector form asks for. Content lives in `pages.py`, on the shared template `web/page.html`. |
 | `/health` | DB connectivity check. Exempt from the rate limit. |
 
 ### Request flow
@@ -70,7 +71,8 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 - `ranking.py` — pure scoring functions and their constants. No DB. Unit-tested in `tests/test_ranking.py`.
 - `db/queries.py` — places, feedback, candidate search SQL, trending
 - `db/profiles.py` — taste profiles, circles, follow-ups, delete
-- `db/friends.py` — one-to-one friend links: single-use invites, directional closeness (1-3), removal in both directions
+- `db/friends.py` — one-to-one friend links: single-use invites, directional closeness (1-3), each side's choice to share picks, friend opinions per place, friends' finds with the nudge bar
+- `pages.py` — privacy, terms, docs, and the icon. Every privacy claim must match the code. Change the page in the same commit as the behavior.
 - `decisions.py` — Jev (TypeSafe AI) client over plain `httpx`: same-place check, cuisine of a new place, optional comment check. Every function returns None when Jev is off or fails.
 - `identity.py` — mint and validate taste tokens (`tb_` + 20 base32 chars; legacy UUIDs still valid), circle codes (two groups), and friend codes (three groups, so the two never mix)
 - `taxonomy.py` — cuisine synonyms and parents, dietary and occasion vocab, cuisine inference from place names
@@ -88,14 +90,17 @@ export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/ta
 ## Design Decisions
 
 - **Anonymity**: the only key for a person is the taste token. The server mints it; agents store it. Any well-formed token is valid, and it grants nothing but access to its own profile.
-- **Credited picks, no machinery**: agents credit each pick with a short "Tastebuds recommends ...". They do not recite counts or scores, and feedback logging stays silent. They credit Tastebuds only for places the engine returned, never for their own fallback picks. The rule lives in the playbook, the search and trending tool descriptions, and the `agent_note` of each result. Agents answer plainly when the person asks what is remembered.
+- **Background first**: the person should rarely see Tastebuds. Three layers, from silent to visible: better picks in chat, a rare nudge from `get_friend_finds`, and a food board on request. Do not add features that make the agent talk about Tastebuds more.
+- **A friend's name carries the pick**: agents lead with a linked friend ("Maya loved the spicy miso there"). They credit Tastebuds at most once per conversation, and only for places the engine returned. They do not recite counts or scores, and feedback logging stays silent. The rule lives in the playbook and in the `agent_note` of each result. Agents answer plainly when the person asks what is remembered.
+- **The nudge bar lives on the server**: `get_friend_finds` decides `worth_a_nudge` (two friends, or one closest friend), allows one nudge per `friend_nudge_cooldown_days`, and tells each find once. Never move that decision to the agent.
 - **One person, one opinion per place**: a new opinion supersedes the old row. History stays; the vote is replaced. This is the main defense against ballot stuffing.
 - **Agents test tools on setup** (Muse calls every tool): writes take `dry_run`, delete needs `confirm=true`. Keep this for any new write tool.
 - **Behavior text must survive any client**: some agents ignore MCP `instructions`. So the playbook also returns from `start_taste_profile`, and tool descriptions carry the key rules.
 - **Place dedup**: exact match on `(city, name_normalized)`, then `pg_trgm` above a threshold (default 0.6). Test data needs clearly different names or the fuzzy matcher merges them.
 - **Ranking**: `quality × confidence × freshness × (1 + personal_fit)`; see the docstring in `ranking.py`. Bayesian prior keeps one rave from winning. Neighborhood is a boost, not a filter, because data is sparse.
 - **Cuisine search**: a broad term matches its children at query time ("japanese" finds "ramen"). Places also store parent tags at write time.
-- **Friends**: the agent derives closeness from messaging activity (Instagram and WhatsApp on Muse, iMessage elsewhere) and sends only a level from 1 to 3. Never add fields for names, handles, phone numbers, hashes of them, or message counts. Each direction has its own closeness. Friend weight in ranking (0.6) is the largest personal signal. Signals need `friend_min_ties` (2) friends.
+- **Friends**: the agent derives closeness from messaging activity (Instagram and WhatsApp on Muse, iMessage elsewhere) and sends only a level from 1 to 3. Never add fields for names, handles, phone numbers, hashes of them, or message counts. Each direction has its own closeness. Friend weight in ranking (0.6) is the largest personal signal.
+- **Friends you can see, names you cannot**: a linked friend who shares picks (`friend_ties.friend_shares_picks`) appears in results by `friend_ref`, with verdict, dishes, and comment. The agent turns the code into a name from its own notes. The server must never store a name or a label for a friend. Sharing is each side's own choice, asked at link time, and links made before migration 006 default to not sharing. A friend who does not share counts only in totals, and only with `friend_min_ties` (2) friends.
 - **Circles**: signals only show when the circle has `circle_min_members` (3) or more. Counts only.
 - **Jev is optional and never blocking**: one request, no retry, 1.5 s timeout, any failure → None → fixed rule. Tests use `httpx.MockTransport`; the wire format comes from docs.typesafe.ai and was not checked against the live API. The comment check is off by default because it sends comment text to a third party.
 - **Degraded mode**: app starts even if DB is unreachable (logs warning, `/health` returns 503).

@@ -4,13 +4,15 @@ A food memory and a crowd-taught recommendation engine for AI assistants.
 
 People text their assistant about food. Tastebuds remembers how each person eats, learns from every meal they mention, and ranks places for them. All of it is anonymous. No reviews. No ratings. No app. See [VISION.md](VISION.md).
 
-Built and tested for four personal agents: [Muse](integrations/muse.md), [Instinct](integrations/instinct.md), [Grok Bot](integrations/grokbot.md), and [Poke](integrations/poke.md). Any MCP client works.
+Built for [Muse](integrations/muse.md) first. [Instinct](integrations/instinct.md), [Grok Bot](integrations/grokbot.md), and [Poke](integrations/poke.md) work too, as does any MCP client. The answers for Meta's connector form are in [integrations/muse-submission.md](integrations/muse-submission.md).
+
+It works in the background. The person rarely sees Tastebuds. They notice that the picks are good, and that a friend's name comes with them: "Maya loved the spicy miso there."
 
 ## How it works
 
 1. The person sends their assistant one message to connect. The landing page at `/` has the message.
 2. The assistant asks one question: "What are a couple of spots you love, and is there anything you don't eat?" One `start_taste_profile` call stores the answer and returns an anonymous `taste_id`.
-3. "Where should I eat?" The assistant calls `search_recommendations`. Results come ranked for this person, with dishes to order and dishes to skip. The assistant credits the pick: "Tastebuds recommends Tajima Ramen."
+3. "Where should I eat?" The assistant calls `search_recommendations`. Results come ranked for this person, with dishes to order, dishes to skip, and what linked friends think. The assistant leads with a friend, and credits Tastebuds at most once per conversation.
 4. "The ramen was incredible." The assistant calls `log_feedback` silently. The next pick gets better for everyone.
 
 ## Three ways in
@@ -20,6 +22,7 @@ Built and tested for four personal agents: [Muse](integrations/muse.md), [Instin
 | MCP (streamable HTTP, no auth) | `/mcp` | Muse, Instinct, Grok Bot, Poke, any MCP client |
 | REST bridge | `POST /api/v1/<tool_name>` | Agents with a computer and no MCP client |
 | Agent guide and OpenAPI | `/llms.txt`, `/openapi.json` | Agents that read a page to set themselves up |
+| Docs, privacy, terms, icon | `/docs`, `/privacy`, `/terms`, `/icon.svg` | People, and Meta's connector review |
 
 The REST bridge runs the MCP tools themselves, so the surfaces cannot drift apart.
 
@@ -34,7 +37,9 @@ The REST bridge runs the MCP tools themselves, so the surfaces cannot drift apar
 | `get_taste_profile` / `update_taste_profile` | Read and change what the engine remembers. |
 | `delete_taste_profile` | Forget a person. Needs `confirm=true`. |
 | `get_follow_ups` | Recommended places the person never reported on. |
-| `invite_friend` / `accept_friend_invite` / `update_friend` | One-to-one links with the people they message most. Closeness from 1 to 3 sets how much a friend's taste counts. |
+| `invite_friend` / `accept_friend_invite` / `update_friend` | One-to-one links with the people they message most. Closeness from 1 to 3 sets how much a friend's taste counts. Each side chooses whether to share picks. |
+| `get_friend_finds` | The weekly background check: new places friends loved. The server says if a find is worth a nudge. |
+| `get_food_board` | One snapshot for a dashboard: favorites, friends' picks, places to try. |
 | `create_circle` / `join_circle` / `leave_circle` | Named groups that shape each other's picks. Counts only, never names. |
 
 ## Ranking
@@ -73,7 +78,11 @@ Against production this is safe: every write is a dry run, except the one full c
 
 The assistant sees who the person messages most: Instagram and WhatsApp on Muse, iMessage on Instinct and Poke. An assistant with no view of messages, such as Grok Bot, asks who they eat out with most. It offers once to link those friends. Each link starts with a one-time invite code that the assistant sends to the friend. The assistant then sends a closeness level: 3 for the few people they message most, 2 for often, 1 for now and then. A level 3 friend's opinion weighs four times a level 1 friend's.
 
-The server stores two tokens and a level. It never sees names, numbers, handles, or message counts. Tastebuds does not match contacts by hashed phone numbers, because such hashes are easy to reverse. Friend signals stay off until two friends have joined.
+The server stores two tokens, a level, and each side's choice to share. It never sees names, numbers, handles, or message counts. Tastebuds does not match contacts by hashed phone numbers, because such hashes are easy to reverse.
+
+**Friends you can see.** Two linked friends each see which places the other liked, the dishes they named, and their short comment. A search result lists those friends by `friend_ref`. The person's own assistant turns the code into a name from its notes, so the server never learns who anyone is. Each side can switch sharing off for one friend, or end the link. A friend who does not share only counts in anonymous totals, and only once the person has two or more friends.
+
+**The nudge bar.** `get_friend_finds` runs in the background about once a week. It is worth a message only when two friends loved a place, or one of the closest friends did. A person gets at most one nudge in six days, and a find that was told once never comes back.
 
 ## Quick decisions with Jev
 
@@ -163,8 +172,8 @@ Live endpoints:
 
 - The only key for a person is a random `taste_id`. No names, phone numbers, emails, or messages.
 - The assistant strips personal details from comments. The server scrubs emails, phone numbers, links, and handles again.
-- Friend links hold two tokens and a closeness level from 1 to 3. No names, numbers, or message counts.
-- Friend and circle signals show counts only. They stay silent under two friends or three circle members.
+- Friend links hold two tokens, a closeness level from 1 to 3, and each side's choice to share. No names, numbers, or message counts.
+- A linked friend sees which places you liked only if you chose to share. Circles show counts only, and stay silent under three members.
 - With Jev on, place names, city, and dish names go to TypeSafe for matching. Comments go only when the comment check is on.
 - `delete_taste_profile` removes the profile, friend links, circle memberships, and follow-ups. Past opinions stay in the totals with no link to anyone.
 

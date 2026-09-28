@@ -20,29 +20,32 @@ the signal: "How was it?" "So good, the pasta was incredible." The person does
 no work. This reaches the many people that review sites never hear from.
 
 In 2026 this matters more than when Tastebuds started. Tastebuds began as a
-Poke recipe. Now personal agents are everywhere: Muse, Instinct, Grok Bot, Poke,
-and more. Each one talks to its person about food every week. Each one has
+Poke recipe. Now personal agents are everywhere. Muse is the main home for
+Tastebuds. Instinct, Grok Bot, and Poke work too. Each one talks to its person about food every week. Each one has
 memory, reminders, and a way to add tools. Tastebuds is the shared food memory
 behind all of them. Every agent on every platform teaches it. Every agent
 gets the benefit.
 
-## One short credit, no machinery
+## In the background
 
-Each pick carries a short credit: "Tastebuds recommends ...". That is all the
-person sees of the system. The assistant does not recite review counts,
-percentages, or scores. It sounds like a friend who knows a good source.
+The person should rarely see Tastebuds. They should notice one thing: the picks
+are good. Almost all of the work is silent. The assistant looks up, logs, and learns.
 
 - **Input**: "I want food near me" / "craving Thai" / "somewhere like Tajima"
-- **Output**: "Tastebuds recommends Sarku Japan. Get the teriyaki chicken. Skip the rice."
+- **Output**: "Sarku Japan. Maya loved the teriyaki chicken there. Skip the rice."
 - **Feedback**: "Yeah it was great" / "meh, the rice was bad"
 - **Acknowledgment**: none. The assistant moves on. No "thanks for your feedback!"
 
-The credit does two jobs. It is honest about where the pick came from. And it
-puts the name in front of people, so they tell friends which tool to add.
+A friend's name carries the pick, not a brand. The assistant credits Tastebuds at
+most once in a conversation, in a few words, and only for places the engine
+returned. A pick from the assistant's own knowledge is its own.
 
-The credit is only for picks the engine returned. When the data is thin and the
-assistant picks from its own knowledge, that pick is its own. A false credit
-would break trust in the true ones.
+Tastebuds shows itself in three layers, from silent to visible:
+
+1. **Background.** Better picks in every food chat. This is almost all of it.
+2. **A quiet nudge.** About once a week at most: "Maya and Sam both loved Nonna Pia."
+   The server decides if a find is worth a message, so no assistant can nag.
+3. **On request.** A food board: your favorites, your friends' picks, places to try.
 
 A person who asks "what do you remember about my food taste?" gets a plain
 answer. A person who says "forget it" gets a real delete.
@@ -74,11 +77,12 @@ The value is in the links, not the rows.
 - **Person to place**: one person holds one opinion per place. A new opinion
   replaces the old one. Ten texts about one taco shop are still one voice.
 - **Person to friend**: the assistant knows who a person messages most. On Muse
-  that means Instagram and WhatsApp. Elsewhere it means iMessage. People trust the
-  friends they talk to every day, so a close friend's opinion counts more than a
-  stranger's. The assistant links the two people with a one-time invite and sends
-  a closeness level from 1 to 3. The engine never learns a name, a number, or a
-  message count. Each side sets its own level, and the level moves as habits change.
+  that means Instagram and WhatsApp. People trust the friends they talk to every
+  day, so a close friend's opinion counts more than a stranger's. Two friends who
+  link up each see which places the other liked, and what to order there. Each
+  side chooses whether to share, and can stop at any time. The engine knows a
+  friend as a code. The person's own assistant knows the name. The engine never
+  learns a name, a number, or a message count.
 - **Person to person**: people who agree on places are taste neighbors. What a
   neighbor loves ranks higher. What a neighbor disliked ranks lower.
 - **Place to place**: fans of one place share other favorites. That answers
@@ -89,9 +93,9 @@ The value is in the links, not the rows.
 - **Person to circle**: a named group with one shared code, such as roommates.
   "Two people in your circle liked it."
 
-Friend and circle signals show counts only, never who said what. They stay
-silent until enough people have joined: two friends, or three circle members.
-With fewer, a count of one would name the friend.
+A friend who chose not to share, and every circle, shows up as counts only.
+Those counts stay silent until enough people have joined, because a count of one
+would name the person.
 
 The friend invite is also how Tastebuds spreads. The invite text carries a link.
 A friend with no setup taps it, picks their assistant, and copies one message

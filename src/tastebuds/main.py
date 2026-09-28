@@ -5,14 +5,14 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, Response
 from fastmcp.exceptions import NotFoundError
 from fastmcp.exceptions import ValidationError as ToolValidationError
 from fastmcp.utilities.lifespan import combine_lifespans
 from pydantic import ValidationError
 from starlette.types import ASGIApp, Receive, Scope, Send
 
-from tastebuds import decisions
+from tastebuds import decisions, pages
 from tastebuds.config import get_settings, public_base_url
 from tastebuds.db.client import close_db_pool, get_pool, init_db_pool
 from tastebuds.identity import parse_bearer, request_bearer_token
@@ -97,6 +97,32 @@ async def landing() -> str:
     """One page for people: pick your assistant, copy one message, send it."""
     messages = json.dumps(connect_messages(public_base_url())).replace("</", "<\\/")
     return _LANDING_TEMPLATE.replace("__MESSAGES_JSON__", messages)
+
+
+@router.get("/privacy", response_class=HTMLResponse)
+async def privacy() -> str:
+    return pages.privacy_page()
+
+
+@router.get("/terms", response_class=HTMLResponse)
+async def terms() -> str:
+    return pages.terms_page()
+
+
+@router.get("/docs", response_class=HTMLResponse)
+async def docs() -> str:
+    """Documentation for assistants, developers, and connector review."""
+    return pages.docs_page(await mcp.list_tools())
+
+
+@router.get("/icon.svg")
+@router.get("/favicon.ico")
+async def icon() -> Response:
+    return Response(
+        content=pages.ICON_SVG,
+        media_type="image/svg+xml",
+        headers={"Cache-Control": "public, max-age=86400"},
+    )
 
 
 @router.get("/llms.txt", response_class=PlainTextResponse)

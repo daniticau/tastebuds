@@ -7,8 +7,10 @@ import asyncpg
 from tastebuds import decisions
 from tastebuds.config import get_settings
 from tastebuds.db.client import get_pool
+from tastebuds.db.friends import friend_opinions
 from tastebuds.db.models import (
     FeedbackResult,
+    FriendOpinion,
     PlaceRecommendation,
     SearchResult,
     TrendingResult,
@@ -125,6 +127,7 @@ def _build_place_recommendation(
     score: Score | None = None,
     dishes: list[dict] | None = None,
     notes: list[str] | None = None,
+    friends: list[FriendOpinion] | None = None,
 ) -> PlaceRecommendation:
     """Convert a database row into the public recommendation shape."""
     total_reviews = _count_reviews(row)
@@ -158,6 +161,7 @@ def _build_place_recommendation(
         dietary_fit=_top_tags(tags.get("dietary", {}), limit=5),
         distance_km=round(score.distance_km, 1) if score and score.distance_km is not None else None,
         your_history=_OWN_HISTORY_LABELS.get(row.get("own_sentiment")),
+        friends=friends or [],
         why=score.reasons if score else [],
         notes=notes or [],
         last_reviewed=(
@@ -271,7 +275,9 @@ circle_votes AS (
 ),
 friend_votes AS (
     -- What do the asker's linked friends think? Closer friends weigh more.
-    -- With fewer than $10 friends the signal stays off, or it would name the friend.
+    -- A friend who shares picks always counts: they agreed to be seen.
+    -- A friend who does not share counts only among $10 or more friends,
+    -- or the signal would reveal what that one friend said.
     SELECT
         f.place_id,
         COALESCE(SUM(w.weight) FILTER (WHERE f.sentiment = 'positive'), 0) AS like_weight,
@@ -283,7 +289,10 @@ friend_votes AS (
         SELECT CASE ft.closeness WHEN 3 THEN 2.0 WHEN 2 THEN 1.0 ELSE 0.5 END AS weight
     ) w
     WHERE ft.taste_id = $1::TEXT
-      AND (SELECT COUNT(*) FROM friend_ties x WHERE x.taste_id = $1::TEXT) >= $10
+      AND (
+          ft.friend_shares_picks
+          OR (SELECT COUNT(*) FROM friend_ties x WHERE x.taste_id = $1::TEXT) >= $10
+      )
     GROUP BY f.place_id
 ),
 similar_places AS (
@@ -365,6 +374,12 @@ async def _fetch_place_details(
               AND comment IS NOT NULL
               AND superseded_at IS NULL
               AND taste_id IS DISTINCT FROM $2::TEXT
+              AND NOT EXISTS (
+                  SELECT 1 FROM friend_ties ft
+                  WHERE ft.taste_id = $2::TEXT
+                    AND ft.friend_shares_picks
+                    AND ft.friend_taste_id = feedback.taste_id
+              )
         ) recent
         WHERE row_num <= 2
         """,
@@ -448,8 +463,12 @@ async def search_places(
     place_name: str | None = None,
     new_places_only: bool = False,
     friends_only: bool = False,
+    track: bool = True,
 ) -> SearchResult:
-    """Search for places, ranked for the person who asks."""
+    """Search for places, ranked for the person who asks.
+
+    track=False skips the follow-up bookkeeping, for views that are not a recommendation.
+    """
     pool = await get_pool()
     settings = get_settings()
     city_norm = normalize_city(city)
@@ -506,12 +525,19 @@ async def search_places(
     top_ids = [row["id"] for _score, row in top]
 
     dishes, notes = await _fetch_place_details(pool, top_ids, taste_id)
+    friends = await friend_opinions(pool, taste_id, top_ids)
     recommendations = [
-        _build_place_recommendation(row, score, dishes.get(row["id"]), notes.get(row["id"]))
+        _build_place_recommendation(
+            row,
+            score,
+            dishes.get(row["id"]),
+            notes.get(row["id"]),
+            friends.get(row["id"]),
+        )
         for score, row in top
     ]
 
-    if taste_id and not place_name_norm:
+    if track and taste_id and not place_name_norm:
         await _record_recommendations(pool, taste_id, top_ids)
 
     return SearchResult(
