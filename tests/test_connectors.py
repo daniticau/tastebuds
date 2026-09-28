@@ -44,8 +44,10 @@ _ALL_TOOLS = {
     "invite_friend",
     "accept_friend_invite",
     "update_friend",
+    "get_friend_finds",
+    "get_food_board",
 }
-_READ_ONLY_TOOLS = {"search_recommendations", "get_trending", "get_taste_profile"}
+_READ_ONLY_TOOLS = {"search_recommendations", "get_trending", "get_taste_profile", "get_food_board"}
 _JSON = {"Content-Type": "application/json"}
 
 
@@ -165,6 +167,8 @@ class TestMuse:
                     "invite_friend": {"taste_id": token, "dry_run": True},
                     "accept_friend_invite": {"taste_id": token, "invite_code": "k7m2-9xqd-4wte"},
                     "update_friend": {"taste_id": token, "friend_ref": "k7m2-9xqd-4wte", "closeness": 2},
+                    "get_friend_finds": {"taste_id": token, "city": "Testville", "peek": True},
+                    "get_food_board": {"taste_id": token, "city": "Testville"},
                 }
                 assert set(test_calls) == _ALL_TOOLS
                 for name, arguments in test_calls.items():
@@ -172,9 +176,11 @@ class TestMuse:
                     assert not _is_error(result), (name, result.content)
                     assert isinstance(_structured(result), dict), name
                     # Every answer tells the agent what happened, in words.
-                    assert _structured(result).get("message") or _structured(result).get(
-                        "success"
-                    ), (name, _structured(result))
+                    answer = _structured(result)
+                    assert any(answer.get(key) for key in ("message", "success", "agent_note")), (
+                        name,
+                        answer,
+                    )
 
     async def test_the_playbook_survives_a_client_that_skips_instructions(self, server):
         async with _sdk_session(server) as session:
@@ -393,17 +399,31 @@ class TestFullConversation:
                     return _structured(result)
 
                 me = (await call("start_taste_profile", platform="muse", home_city=city, dietary="vegetarian"))["taste_id"]
-                friends = []
+                friends, refs = [], []
                 for place in ("Nonna Pia Trattoria", "Blue Harbor Sushi"):
-                    friend = await call("start_taste_profile", platform="grokbot", home_city=city, favorite_places=place)
+                    friend = await call("start_taste_profile", platform="muse", home_city=city, favorite_places=place)
                     friends.append(friend["taste_id"])
                     invite = await call("invite_friend", taste_id=me, closeness=3)
+                    refs.append(invite["friend_ref"])
                     await call("accept_friend_invite", taste_id=friend["taste_id"], invite_code=invite["friend_ref"])
 
                 picks = await call("search_recommendations", taste_id=me)
                 assert {place["name"] for place in picks["recommendations"]} == {"Nonna Pia Trattoria", "Blue Harbor Sushi"}
                 assert "Tastebuds recommends" in picks["agent_note"]
                 assert "someone close to them liked it" in picks["recommendations"][0]["why"]
+                # Each pick names the friend by friend_ref. Muse turns it into a name.
+                assert {place["friends"][0]["friend_ref"] for place in picks["recommendations"]} == set(refs)
+
+                # The weekly background check: both friends are closeness 3, so it is worth one nudge.
+                finds = await call("get_friend_finds", taste_id=me)
+                assert finds["worth_a_nudge"] is True
+                assert len(finds["finds"]) == 2
+                again = await call("get_friend_finds", taste_id=me)
+                assert (again["worth_a_nudge"], again["finds"]) == (False, [])
+
+                board = await call("get_food_board", taste_id=me)
+                assert [find["name"] for find in board["from_friends"]]
+                assert board["friend_count"] == 2
 
                 logged = await call(
                     "log_feedback",

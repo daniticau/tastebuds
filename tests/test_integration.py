@@ -72,6 +72,7 @@ async def world(db_pool):
         current.tokens,
     )
     await db_pool.execute("DELETE FROM friend_invites WHERE inviter_taste_id = ANY($1)", current.tokens)
+    await db_pool.execute("DELETE FROM friend_find_events WHERE taste_id = ANY($1)", current.tokens)
     await db_pool.execute("DELETE FROM recommendation_events WHERE taste_id = ANY($1)", current.tokens)
     await db_pool.execute(
         "DELETE FROM circles c WHERE NOT EXISTS "
@@ -643,23 +644,70 @@ class TestFriends:
         await friends.accept_invite(friend, code, theirs)
         return code
 
-    async def test_friends_shape_the_ranking_once_two_have_joined(self, world):
-        me, best_friend, coworker = world.person(), world.person(), world.person()
-        await world.opinion(best_friend, "Nonna Pia Trattoria")
+    async def test_a_friend_who_shares_counts_from_the_first_link(self, world):
+        me, best_friend = world.person(), world.person()
+        await world.opinion(
+            best_friend,
+            "Nonna Pia Trattoria",
+            comment="Best cacio e pepe in town.",
+            dishes=[DishOpinion("Cacio e Pepe", "positive"), DishOpinion("tiramisu", "negative")],
+            occasion="date",
+        )
         for _ in range(3):
             await world.opinion(world.person(), "Smoky Oak Barbecue")
         assert (await world.names(me))[0] == "Smoky Oak Barbecue"
 
-        await self._link(me, best_friend, mine=3)
-        # One friend: the signal stays off, or it would reveal what that friend said.
-        assert (await world.names(me))[0] == "Smoky Oak Barbecue"
+        ref = await self._link(me, best_friend, mine=3)
+        result = await service.recommend(city=world.city, taste_id=me)
+        top = result.recommendations[0]
+        assert top.name == "Nonna Pia Trattoria"
+
+        # The person sees which friend, and why. The server names no one: only the friend_ref.
+        assert len(top.friends) == 1
+        friend = top.friends[0]
+        assert (friend.friend_ref, friend.closeness, friend.verdict) == (ref, 3, "loved it")
+        assert friend.loved_dishes == ["Cacio e Pepe"]
+        assert friend.skipped_dishes == ["tiramisu"]
+        assert friend.note == "Best cacio e pepe in town."
+        assert friend.good_for == "date night"
+        # The friend's note shows with the friend, not a second time as an anonymous note.
+        assert top.notes == []
+        assert (await profiles.get_profile(me)).friend_signals_active is True
+
+    async def test_a_private_friend_stays_in_the_totals(self, world):
+        me, private_friend, other = world.person(), world.person(), world.person()
+        await world.opinion(private_friend, "Nonna Pia Trattoria", comment="So good.")
+        for _ in range(3):
+            await world.opinion(world.person(), "Smoky Oak Barbecue")
+
+        code = await friends.create_invite(me, 3)
+        await friends.accept_invite(private_friend, code, 3, shares_picks=False)
+        # One private friend: no signal at all, or it would reveal what that friend said.
+        result = await service.recommend(city=world.city, taste_id=me)
+        assert result.recommendations[0].name == "Smoky Oak Barbecue"
+        assert all(place.friends == [] for place in result.recommendations)
         assert (await profiles.get_profile(me)).friend_signals_active is False
 
-        await self._link(me, coworker, mine=1)
+        # With a second friend the private one counts, still without a name.
+        await self._link(me, other, mine=1)
         result = await service.recommend(city=world.city, taste_id=me)
         assert result.recommendations[0].name == "Nonna Pia Trattoria"
+        assert result.recommendations[0].friends == []
         assert "someone close to them liked it" in result.recommendations[0].why
-        assert (await profiles.get_profile(me)).friend_signals_active is True
+
+    async def test_sharing_can_be_switched_off_later(self, world):
+        me, friend = world.person(), world.person()
+        await world.opinion(friend, "Nonna Pia Trattoria")
+        ref = await self._link(me, friend)
+        assert (await service.recommend(city=world.city, taste_id=me)).recommendations[0].friends
+
+        assert await friends.set_sharing(friend, ref, False) is True
+        result = await service.recommend(city=world.city, taste_id=me)
+        assert result.recommendations[0].friends == []
+        mine = (await profiles.get_profile(me)).friends[0]
+        theirs = (await profiles.get_profile(friend)).friends[0]
+        assert (mine.they_share_picks, mine.you_share_picks) == (False, True)
+        assert (theirs.they_share_picks, theirs.you_share_picks) == (True, False)
 
     async def test_closer_friends_count_more(self, world):
         me, close, distant = world.person(), world.person(), world.person()
@@ -736,6 +784,134 @@ class TestFriends:
         assert await db_pool.fetchval(
             "SELECT COUNT(*) FROM friend_invites WHERE inviter_taste_id = $1", me,
         ) == 0
+
+
+class TestFriendFinds:
+    """The weekly background check. The server holds the bar, so no agent can nag."""
+
+    async def _link(self, me: str, friend: str, mine: int = 2) -> str:
+        code = await friends.create_invite(me, mine)
+        await friends.accept_invite(friend, code, 2)
+        return code
+
+    async def test_a_closest_friends_new_love_is_worth_one_nudge(self, world):
+        me, maya = world.person(), world.person()
+        ref = await self._link(me, maya, mine=3)
+        await world.opinion(maya, "Nonna Pia Trattoria", dishes=[DishOpinion("cacio e pepe")])
+
+        result = await friends.friend_finds(me, world.city)
+        assert result.worth_a_nudge is True
+        assert [find.name for find in result.finds] == ["Nonna Pia Trattoria"]
+        assert result.finds[0].friends[0].friend_ref == ref
+        assert result.finds[0].friends[0].loved_dishes == ["cacio e pepe"]
+        assert "one short message" in result.message.lower() or "One short" in result.message
+
+        # Told once, never again.
+        again = await friends.friend_finds(me, world.city)
+        assert (again.worth_a_nudge, again.finds) == (False, [])
+
+    async def test_one_casual_friend_is_not_worth_a_message(self, world):
+        me, coworker = world.person(), world.person()
+        await self._link(me, coworker, mine=1)
+        await world.opinion(coworker, "Blue Harbor Sushi")
+
+        result = await friends.friend_finds(me, world.city)
+        assert result.worth_a_nudge is False
+        assert [find.name for find in result.finds] == ["Blue Harbor Sushi"]
+        assert "Do not notify" in result.message
+        # Nothing was told, so the find can still earn a nudge later.
+        second = world.person()
+        await self._link(me, second, mine=1)
+        await world.opinion(second, "Blue Harbor Sushi")
+        assert (await friends.friend_finds(me, world.city)).worth_a_nudge is True
+
+    async def test_at_most_one_nudge_per_week(self, world, db_pool):
+        me, maya = world.person(), world.person()
+        await self._link(me, maya, mine=3)
+        await world.opinion(maya, "Nonna Pia Trattoria")
+        assert (await friends.friend_finds(me, world.city)).worth_a_nudge is True
+
+        await world.opinion(maya, "Blue Harbor Sushi")
+        quiet = await friends.friend_finds(me, world.city)
+        assert quiet.worth_a_nudge is False
+        assert [find.name for find in quiet.finds] == ["Blue Harbor Sushi"]
+
+        await db_pool.execute(
+            "UPDATE friend_find_events SET shown_at = shown_at - INTERVAL '8 days' WHERE taste_id = $1",
+            me,
+        )
+        later = await friends.friend_finds(me, world.city)
+        assert later.worth_a_nudge is True
+        assert [find.name for find in later.finds] == ["Blue Harbor Sushi"]
+
+    async def test_a_peek_marks_nothing(self, world):
+        me, maya = world.person(), world.person()
+        await self._link(me, maya, mine=3)
+        await world.opinion(maya, "Nonna Pia Trattoria")
+        assert (await friends.friend_finds(me, world.city, peek=True)).worth_a_nudge is True
+        assert (await friends.friend_finds(me, world.city)).worth_a_nudge is True
+
+    async def test_finds_skip_what_the_person_knows_and_what_is_stale(self, world, db_pool):
+        me, maya = world.person(), world.person()
+        await self._link(me, maya, mine=3)
+        await world.opinion(maya, "Nonna Pia Trattoria")
+        await world.opinion(maya, "Old Favorite Diner")
+        await world.opinion(me, "Nonna Pia Trattoria")
+        await db_pool.execute(
+            """
+            UPDATE feedback SET created_at = now() - INTERVAL '90 days'
+            WHERE taste_id = $1 AND place_id = (
+                SELECT id FROM places WHERE city = $2 AND canonical_name = 'Old Favorite Diner'
+            )
+            """,
+            maya,
+            world.city,
+        )
+        assert (await friends.friend_finds(me, world.city)).finds == []
+
+    async def test_a_private_friend_never_shows_up_in_finds(self, world):
+        me, private_friend = world.person(), world.person()
+        code = await friends.create_invite(me, 3)
+        await friends.accept_invite(private_friend, code, 3, shares_picks=False)
+        await world.opinion(private_friend, "Nonna Pia Trattoria")
+        assert (await friends.friend_finds(me, world.city)).finds == []
+
+
+class TestFoodBoard:
+    async def test_the_board_holds_the_persons_food_world(self, world, db_pool):
+        me, maya = world.person(), world.person()
+        await profiles.upsert_profile(
+            me, service.build_profile_changes(home_city=world.city, dietary=["vegetarian"]),
+        )
+        await find_or_create_place(name="Tajima", city=world.city, cuisine_tags=["ramen"])
+        await world.opinion(me, "Tajima")
+        await world.opinion(maya, "Nonna Pia Trattoria", dishes=[DishOpinion("cacio e pepe")])
+        await world.opinion(world.person(), "Smoky Oak Barbecue")
+        code = await friends.create_invite(me, 3)
+        await friends.accept_invite(maya, code, 3)
+
+        board = await service.food_board(me, None)
+
+        assert board.city == world.city
+        assert [place.name for place in board.your_favorites] == ["Tajima"]
+        assert [find.name for find in board.from_friends] == ["Nonna Pia Trattoria"]
+        assert board.from_friends[0].friends[0].friend_ref == code
+        assert {place.name for place in board.to_try} == {"Nonna Pia Trattoria", "Smoky Oak Barbecue"}
+        assert board.to_try[0].name == "Nonna Pia Trattoria"
+        assert board.dietary == ["vegetarian"]
+        assert (board.opinion_count, board.friend_count) == (1, 1)
+        assert "friend_ref" in board.agent_note
+
+        # A board is a view. It creates no follow-up and marks no find as told.
+        assert await db_pool.fetchval(
+            "SELECT COUNT(*) FROM recommendation_events WHERE taste_id = $1", me,
+        ) == 0
+        assert (await friends.friend_finds(me, world.city)).worth_a_nudge is True
+
+    async def test_a_new_person_gets_an_empty_board(self, world):
+        board = await service.food_board(world.person(), None)
+        assert board.city is None
+        assert (board.your_favorites, board.from_friends, board.to_try) == ([], [], [])
 
 
 class TestFollowUps:

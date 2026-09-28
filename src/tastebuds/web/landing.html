@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tastebuds</title>
-<meta name="description" content="Give your AI assistant a memory for food. One text to connect. No account.">
+<meta name="description" content="Give Muse a memory for food, and see where your friends like to eat. One text to connect. No account.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&family=Newsreader:opsz,wght@6..72,500;6..72,600&family=Rubik:wght@400;500&display=swap" rel="stylesheet">
@@ -388,10 +389,10 @@
   </div>
 
   <header class="hero">
-    <h1>Your assistant learns where you like to eat</h1>
-    <p class="lede">A memory for food, right in your texts. It works with Muse, Instinct, Grok Bot, and Poke. No app. No account. No reviews to write.</p>
+    <h1>Muse learns where you and your friends like to eat</h1>
+    <p class="lede">A memory for food that works in the background. Your picks just get good. No app. No account. No reviews to write.</p>
     <div class="actions">
-      <a class="btn btn-dark" href="#connect">Connect</a>
+      <a class="btn btn-dark" href="#connect">Add to Muse</a>
       <a class="btn btn-light" href="#how">How it works</a>
     </div>
 
@@ -404,16 +405,16 @@
       <svg class="food"><use href="#food-donut"/></svg>
     </div>
 
-    <div class="phone" role="img" aria-label="A text thread. You ask where to eat tonight. Your assistant answers: Tastebuds recommends Tajima Ramen, get the spicy miso. The next day it asks if you went, and you say the broth was unreal.">
+    <div class="phone" role="img" aria-label="A text thread. You ask where to eat tonight. Muse answers: Tajima Ramen, Maya loved the spicy miso there. The next day it asks if you went, and you say the broth was unreal.">
       <div class="screen" aria-hidden="true">
         <div class="status"><span>9:41</span><span class="island"></span><span>5G</span></div>
         <div class="contact">
           <span class="avatar"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 14C7 14 4 11 4 6c5 0 8 3 8 8z"/><path d="M12 14c0-5 3-8 8-8 0 5-3 8-8 8z"/><path d="M11 13h2v8a1 1 0 0 1-2 0z"/></svg></span>
-          your assistant
+          Muse
         </div>
         <div class="thread">
           <span class="bubble out">where should i eat tonight</span>
-          <span class="bubble in">Tastebuds recommends Tajima Ramen. get the spicy miso</span>
+          <span class="bubble in">Tajima Ramen. Maya loved the spicy miso there</span>
           <span class="gap">next day</span>
           <span class="bubble in">did you end up going?</span>
           <span class="bubble out">yes. the broth was unreal</span>
@@ -431,8 +432,8 @@
 <main>
   <section class="narrow" id="connect">
     <div class="card" aria-labelledby="connect-title">
-      <h2 id="connect-title">Connect with one text</h2>
-      <p class="soft">Pick your assistant. Copy the message. Send it.</p>
+      <h2 id="connect-title">Add it to Muse with one text</h2>
+      <p class="soft">Copy the message. Send it to Muse. Other assistants work too.</p>
       <div class="platforms" role="group" aria-label="Assistant">
         <button class="btn btn-small btn-light" type="button" data-platform="muse" aria-pressed="true">Muse</button>
         <button class="btn btn-small btn-light" type="button" data-platform="instinct" aria-pressed="false">Instinct</button>
@@ -457,9 +458,9 @@
         <p>Your assistant asks what you love and what you do not eat. That one answer sets up your taste.</p>
       </div>
       <div class="step">
-        <div class="step-top"><span class="say">Tastebuds recommends…</span><svg class="food" aria-hidden="true"><use href="#food-ramen"/></svg></div>
+        <div class="step-top"><span class="say">Maya loved the miso…</span><svg class="food" aria-hidden="true"><use href="#food-ramen"/></svg></div>
         <h3>Picks that fit you</h3>
-        <p>It ranks places by what real diners thought, what people with your taste enjoy, and which dish to order.</p>
+        <p>It ranks places by what your friends love, what people with your taste enjoy, and which dish to order.</p>
       </div>
       <div class="step">
         <div class="step-top"><span class="say">how was it?</span><svg class="food" aria-hidden="true"><use href="#food-donut"/></svg></div>
@@ -472,9 +473,9 @@
   <section id="friends">
     <div class="split">
       <div>
-        <h2>The people you text most count most</h2>
-        <p class="soft">You trust a close friend more than a stranger. So does Tastebuds. Your assistant links you with the people you message most, and their taste shapes your picks.</p>
-        <p class="soft">It sends one number per friend, from 1 to 3. It never sends a name, a phone number, or a message.</p>
+        <h2>See where your friends like to eat</h2>
+        <p class="soft">You trust a close friend more than a stranger. So does Tastebuds. Link with a friend, and you each see which places the other liked, and what to order there.</p>
+        <p class="soft">Muse sends one number per friend, from 1 to 3, for how close you are. It never sends a name, a phone number, or a message. Tastebuds knows a friend as a code. Muse knows the name.</p>
       </div>
       <div class="friends" aria-hidden="true">
         <div class="friend"><span class="dot" style="background:#C8A98B"></span><span class="who">Texts you every day<small>counts most</small></span><span class="level"><i class="on"></i><i class="on"></i><i class="on"></i></span></div>
@@ -490,7 +491,7 @@
     <ul class="plain">
       <li>It keeps your food preferences and your opinions on places, under a random token.</li>
       <li>It never keeps your name, your number, your messages, or your location history.</li>
-      <li>Friend and circle signals show counts only, never who said what.</li>
+      <li>A linked friend sees which places you liked, and only if you chose to share. You can stop at any time.</li>
       <li>Ask your assistant what it remembers about your taste. Ask it to forget, and it deletes the profile.</li>
     </ul>
   </section>
@@ -507,13 +508,13 @@
 
 <footer>
   <span>Tastebuds. A food memory for AI assistants.</span>
-  <span><a href="/llms.txt">Guide for agents</a><a href="/openapi.json">OpenAPI</a></span>
+  <span><a href="/docs">Docs</a><a href="/privacy">Privacy</a><a href="/terms">Terms</a><a href="/llms.txt">Guide for agents</a></span>
 </footer>
 
 <script>
   const MESSAGES = __MESSAGES_JSON__;
   const HINTS = {
-    muse: "Muse builds the connection, tests it, and saves it as a skill. It takes about a minute.",
+    muse: "Muse builds a Custom Connector, tests it, and keeps it. When Muse asks to save your food likes, choose Always allow. After that it stays quiet.",
     instinct: "Instinct adds the connector from this one text. No settings page is needed.",
     grokbot: "You can also add it under Settings, then Plugins, as a custom connector: a name and the URL.",
     poke: "You can also add the integration yourself under Settings, then Connections, in Poke.",
@@ -529,7 +530,7 @@
   const inviteOk = /^[0-9a-hjkmnp-tv-z]{4}-[0-9a-hjkmnp-tv-z]{4}-[0-9a-hjkmnp-tv-z]{4}$/.test(inviteCode);
   const inviteSuffix = inviteOk ? " After that, accept the Tastebuds friend invite " + inviteCode + "." : "";
   if (inviteOk) {
-    document.getElementById("connect-title").textContent = "A friend invited you. Connect with one text";
+    document.getElementById("connect-title").textContent = "A friend invited you. Add it with one text";
   }
 
   function select(platform) {

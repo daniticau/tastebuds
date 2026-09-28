@@ -8,6 +8,7 @@ from tastebuds.config import get_settings
 from tastebuds.db import friends as friends_db
 from tastebuds.db.client import get_pool
 from tastebuds.db.models import (
+    BoardPlace,
     CircleInfo,
     FollowUp,
     FollowUpsResult,
@@ -195,6 +196,32 @@ async def load_taste_context(taste_id: str | None) -> TasteContext:
     )
 
 
+async def favorite_places(taste_id: str, limit: int) -> list[BoardPlace]:
+    """Places the person loved, newest first."""
+    pool = await get_pool()
+    rows = await pool.fetch(
+        """
+        SELECT p.canonical_name, p.city, p.neighborhood, p.cuisine_tags
+        FROM feedback f
+        JOIN places p ON p.id = f.place_id
+        WHERE f.taste_id = $1 AND f.superseded_at IS NULL AND f.sentiment = 'positive'
+        ORDER BY f.created_at DESC
+        LIMIT $2
+        """,
+        taste_id,
+        limit,
+    )
+    return [
+        BoardPlace(
+            name=row["canonical_name"],
+            city=row["city"],
+            neighborhood=row["neighborhood"],
+            cuisine_tags=row["cuisine_tags"] or [],
+        )
+        for row in rows
+    ]
+
+
 async def get_home_city(taste_id: str) -> str | None:
     pool = await get_pool()
     return await pool.fetchval(
@@ -210,7 +237,11 @@ async def get_profile(taste_id: str) -> TasteProfile:
     history = await _fetch_history(pool, taste_id)
     circles = await _fetch_circles(pool, taste_id)
     friends = await friends_db.list_friends(taste_id)
-    friends_active = len(friends) >= get_settings().friend_min_ties
+    # A friend who shares picks counts from the first link. Others need company.
+    friends_active = (
+        any(friend.they_share_picks for friend in friends)
+        or len(friends) >= get_settings().friend_min_ties
+    )
 
     affinity = learned_cuisine_affinity(
         [(entry["cuisine_tags"] or [], entry["sentiment"]) for entry in history],

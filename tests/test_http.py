@@ -39,6 +39,8 @@ _EXPECTED_TOOLS = {
     "invite_friend",
     "accept_friend_invite",
     "update_friend",
+    "get_friend_finds",
+    "get_food_board",
 }
 
 
@@ -64,6 +66,42 @@ class TestPages:
             assert f'"{platform}"' in response.text
             assert f'data-platform="{platform}"' in response.text
         assert "/mcp" in response.text
+
+    @pytest.mark.parametrize(
+        ("path", "must_say"),
+        [
+            ("/privacy", ["does not store", "linked friend", "Delete it", "allergies"]),
+            ("/terms", ["does not know menus", "No warranty"]),
+            ("/docs", ["start_taste_profile", "get_friend_finds", "dry_run=true", "Tastebuds playbook", "/mcp"]),
+        ],
+    )
+    def test_pages_the_muse_connector_form_asks_for(self, client, path, must_say):
+        response = client.get(path)
+        assert response.status_code == 200
+        assert "text/html" in response.headers["content-type"]
+        assert "__BODY__" not in response.text and "__TITLE__" not in response.text
+        for phrase in must_say:
+            assert phrase in response.text, phrase
+
+    def test_docs_list_every_tool_with_its_kind(self, client):
+        page = client.get("/docs").text
+        for tool in _EXPECTED_TOOLS:
+            assert f"<code>{tool}</code>" in page, tool
+        assert "<td>delete</td>" in page and "<td>read</td>" in page and "<td>write</td>" in page
+
+    def test_icon_is_a_512_svg(self, client):
+        response = client.get("/icon.svg")
+        assert response.status_code == 200
+        assert response.headers["content-type"].startswith("image/svg+xml")
+        assert 'width="512" height="512"' in response.text
+
+    def test_support_email_shows_when_set(self, client, monkeypatch):
+        from tastebuds import pages
+        from tastebuds.config import Settings
+
+        settings = Settings(database_url="postgresql://unused", support_email="help@example.com")
+        monkeypatch.setattr(pages, "get_settings", lambda: settings)
+        assert 'href="mailto:help@example.com"' in client.get("/privacy").text
 
     def test_llms_txt_tells_an_agent_how_to_connect(self, client):
         response = client.get("/llms.txt")
