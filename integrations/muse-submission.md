@@ -2,6 +2,7 @@
 
 The form is at `muse.ai/platform`, behind "Submit a connector". It has three steps.
 The answers below are ready to paste. Replace each value in `<angle brackets>`.
+The domain is `tastebuds.daniticau.com`.
 
 Review takes weeks, not days. Until approval, people add Tastebuds as a Custom Connector
 with the message on the landing page. That path needs no review.
@@ -9,14 +10,14 @@ with the message on the landing page. That path needs no review.
 ## Before you submit
 
 1. Deploy the server. The form needs live URLs.
-2. Set `TASTEBUDS_PUBLIC_BASE_URL` to the public origin.
+2. Check that `https://tastebuds.daniticau.com/health` answers `ok`. That domain is the default public origin.
 3. Set `TASTEBUDS_SUPPORT_EMAIL`. The privacy, terms, and docs pages print it.
 4. Read `/privacy` and `/terms` once. They are plain-language drafts that match the code.
    They are not legal advice. Have a lawyer check them before a wide launch.
 5. Run the connector tests against the live server:
 
 ```bash
-TASTEBUDS_TEST_SERVER_URL=https://<your-domain> pytest tests/test_connectors.py
+TASTEBUDS_TEST_SERVER_URL=https://tastebuds.daniticau.com pytest tests/test_connectors.py
 ```
 
 ## Step 1: Overview
@@ -25,14 +26,14 @@ TASTEBUDS_TEST_SERVER_URL=https://<your-domain> pytest tests/test_connectors.py
 |---|---|
 | Connector name | Tastebuds |
 | Company or developer | `<your name or company>` |
-| Product website | `https://<your-domain>/` |
-| Connector icon | `https://<your-domain>/icon.svg` (512 by 512, SVG) |
+| Product website | `https://tastebuds.daniticau.com/` |
+| Connector icon | `https://tastebuds.daniticau.com/icon.svg` (512 by 512, SVG) |
 | Payments | Does not accept payments |
 | Your name | `<your name>` |
 | Work email | `<your email>` |
 | Support email or URL | `<support email>` |
-| Privacy policy URL | `https://<your-domain>/privacy` |
-| Terms of service URL | `https://<your-domain>/terms` |
+| Privacy policy URL | `https://tastebuds.daniticau.com/privacy` |
+| Terms of service URL | `https://tastebuds.daniticau.com/terms` |
 
 **What the connector does**
 
@@ -69,8 +70,8 @@ or acts outside Tastebuds. Writes accept dry_run=true for testing.
 | Field | Answer |
 |---|---|
 | Connection type | Existing MCP |
-| Hosted MCP endpoint | `https://<your-domain>/mcp` |
-| Documentation | `https://<your-domain>/docs` |
+| Hosted MCP endpoint | `https://tastebuds.daniticau.com/mcp` |
+| Documentation | `https://tastebuds.daniticau.com/docs` |
 | Authentication methods | Other |
 
 **Access requirements**

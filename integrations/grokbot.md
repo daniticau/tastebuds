@@ -10,7 +10,7 @@ bot on the account.
 Send this in a chat with the bot:
 
 ```text
-Add a custom MCP server called Tastebuds at https://tastebuds-production.up.railway.app/mcp
+Add a custom MCP server called Tastebuds at https://tastebuds.daniticau.com/mcp
 with no auth and no headers. When you test the tools, set dry_run=true.
 Then call start_taste_profile for me and follow the playbook it returns.
 ```

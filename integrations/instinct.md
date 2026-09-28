@@ -8,10 +8,10 @@ screen for MCP. The person texts one message that names the server.
 ## The message to send
 
 ```text
-Add my Tastebuds connector: https://tastebuds-production.up.railway.app/mcp
+Add my Tastebuds connector: https://tastebuds.daniticau.com/mcp
 (standard MCP over HTTP, no sign-in needed). When you test the tools, set
 dry_run=true. Then call start_taste_profile for me and follow the playbook it
-returns. If you cannot use MCP, read https://tastebuds-production.up.railway.app/llms.txt
+returns. If you cannot use MCP, read https://tastebuds.daniticau.com/llms.txt
 and follow it.
 ```
 

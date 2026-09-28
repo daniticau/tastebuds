@@ -8,13 +8,13 @@ the playbook reaches it without extra work.
 In Poke: Settings, then Connections, then add an MCP integration.
 
 - Name: `Tastebuds`
-- MCP server URL: `https://tastebuds-production.up.railway.app/mcp`
+- MCP server URL: `https://tastebuds.daniticau.com/mcp`
 - Auth: none
 
 Or from a terminal:
 
 ```bash
-npx poke@latest mcp add https://tastebuds-production.up.railway.app/mcp -n "Tastebuds"
+npx poke@latest mcp add https://tastebuds.daniticau.com/mcp -n "Tastebuds"
 ```
 
 ## What Poke sends

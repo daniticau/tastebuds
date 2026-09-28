@@ -16,8 +16,8 @@ A directory connector is an existing MCP server or a raw API. Tastebuds is an MC
 
 ```text
 Create a Custom Connector for Tastebuds. Its MCP server is
-https://<your-domain>/mcp with no sign-in, and its API docs are at
-https://<your-domain>/llms.txt for you to read. When you test the tools,
+https://tastebuds.daniticau.com/mcp with no sign-in, and its API docs are at
+https://tastebuds.daniticau.com/llms.txt for you to read. When you test the tools,
 set dry_run=true. Then call start_taste_profile for me and follow the
 playbook it returns.
 ```
