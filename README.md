@@ -1,182 +1,80 @@
 # Tastebuds
 
-A food memory and a crowd-taught recommendation engine for AI assistants.
+Good food recs from personal agents.
 
-People text their assistant about food. Tastebuds remembers how each person eats, learns from every meal they mention, and ranks places for them. All of it is anonymous. No reviews. No ratings. No app. See [VISION.md](VISION.md).
+You text your AI assistant about food like you normally would. Tastebuds runs in the background: it remembers how you eat, learns from every meal you mention, and ranks places for you using what your friends and people with similar taste liked. There are no reviews, no ratings, and no app.
 
-Built for [Muse](integrations/muse.md) first. [Instinct](integrations/instinct.md), [Grok Bot](integrations/grokbot.md), and [Poke](integrations/poke.md) work too, as does any MCP client. The answers for Meta's connector form are in [integrations/muse-submission.md](integrations/muse-submission.md).
-
-It works in the background. The person rarely sees Tastebuds. They notice that the picks are good, and that a friend's name comes with them: "Maya loved the spicy miso there."
+Live at [tastebuds.daniticau.com](https://tastebuds.daniticau.com). It works with Muse, Instinct, Grok Bot, Poke, or any MCP client.
 
 ## How it works
 
-1. The person sends their assistant one message to connect. The landing page at `/` has the message.
-2. The assistant asks one question: "What are a couple of spots you love, and is there anything you don't eat?" One `start_taste_profile` call stores the answer and returns an anonymous `taste_id`.
-3. "Where should I eat?" The assistant calls `search_recommendations`. Results come ranked for this person, with dishes to order, dishes to skip, and what linked friends think. The assistant leads with a friend, and credits Tastebuds at most once per conversation.
-4. "The ramen was incredible." The assistant calls `log_feedback` silently. The next pick gets better for everyone.
+1. You send your assistant one message to connect. The landing page has the message.
+2. The assistant asks for a couple of spots you love and anything you don't eat.
+3. You ask "where should I eat?" and get picks ranked for you, with dishes to order, dishes to skip, and what your friends thought. For example: "Tajima Ramen. Maya loved the spicy miso there."
+4. You mention how the meal went ("the broth was unreal"), and the assistant logs it quietly. The next pick gets better for everyone.
 
-## Three ways in
+## Friends
 
-| Surface | URL | For |
-|---|---|---|
-| MCP (streamable HTTP, no auth) | `/mcp` | Muse, Instinct, Grok Bot, Poke, any MCP client |
-| REST bridge | `POST /api/v1/<tool_name>` | Agents with a computer and no MCP client |
-| Agent guide and OpenAPI | `/llms.txt`, `/openapi.json` | Agents that read a page to set themselves up |
-| Docs, privacy, terms, icon | `/docs`, `/privacy`, `/terms`, `/icon.svg` | People, and Meta's connector review |
+Your assistant can link you with the people you message most. Closer friends count more: a best friend's opinion weighs four times a casual friend's. Linked friends can see which places each other liked, and either side can turn that off.
 
-The landing page speaks of "your agent". Its connect buttons show each platform's logo from [src/tastebuds/web/logos/](src/tastebuds/web/logos/README.md). Each logo belongs to its platform and is there only to name it.
-
-The REST bridge runs the MCP tools themselves, so the surfaces cannot drift apart.
-
-## Tools
-
-| Tool | Purpose |
-|------|---------|
-| `start_taste_profile` | Onboard a person in one call. Returns the `taste_id` and the playbook. |
-| `search_recommendations` | Ranked places. Filters: cuisine, neighborhood, occasion, vibes, price, location, `similar_to`, `place_name`. |
-| `log_feedback` | One opinion about one real meal: sentiment, dishes, occasion, price, vibes, dietary fit. |
-| `get_trending` | Places with the most good opinions lately. |
-| `get_taste_profile` / `update_taste_profile` | Read and change what the engine remembers. |
-| `delete_taste_profile` | Forget a person. Needs `confirm=true`. |
-| `get_follow_ups` | Recommended places the person never reported on. |
-| `invite_friend` / `accept_friend_invite` / `update_friend` | One-to-one links with the people they message most. Closeness from 1 to 3 sets how much a friend's taste counts. Each side chooses whether to share picks. |
-| `get_friend_finds` | The weekly background check: new places friends loved. The server says if a find is worth a nudge. |
-| `get_food_board` | One snapshot for a dashboard: favorites, friends' picks, places to try. |
-| `create_circle` / `join_circle` / `leave_circle` | Named groups that shape each other's picks. Counts only, never names. |
+The server never sees names, phone numbers, or messages. Each friend is a random code, and your own assistant turns that code back into a name.
 
 ## Ranking
 
-`score = quality x confidence x freshness x (1 + personal fit)`
-
-- **Quality**: share of good opinions, pulled toward a prior when opinions are few. One rave does not beat nine raves and one complaint.
-- **Confidence**: a small bonus for volume.
-- **Freshness**: old praise counts less, but never less than 70%.
-- **Personal fit**: friends weighted by closeness, taste neighbors, circle, liked and disliked cuisines, cuisines learned from history, dietary fit, occasion, vibe, neighborhood, price, and distance.
-
-One person holds one opinion per place. A new opinion replaces the old one. A place the person disliked never comes back. The ranking is pure Python in [ranking.py](src/tastebuds/ranking.py) and has its own unit tests.
-
-## Connector compatibility
-
-Each platform talks to an MCP server in its own way. `tests/test_connectors.py` starts the real server and replays each one over real HTTP:
-
-| Platform | How it connects | What the tests replay |
-|---|---|---|
-| Muse | Writes a client with the official MCP SDK, tests every tool, saves a skill | The SDK client calls all 14 tools once. Every call comes back clean and stores nothing. |
-| Instinct | One text names the server. Keeps one `Mcp-Session-Id` for all calls | A stale session id with no new `initialize`, a bare `Accept` header, loose input, and the REST route |
-| Grok Bot | A name, a URL, optional headers. Probes for OAuth | OAuth probes get 404, no credential challenge, junk headers ignored, old and future protocol versions |
-| Poke | Streamable HTTP, `X-Poke-User-Id` on every request, reads instructions | The playbook arrives as instructions, the user id never comes back, the first recipe's calls still work |
-
-The MCP endpoint is stateless and answers in plain JSON, so a deploy never breaks a client that holds an old session. Tool hints mark reads, writes, and the one delete, so platforms keep silent logging silent.
-
-Aim the same tests at any running server, such as the production image or a staging deploy:
-
-```bash
-TASTEBUDS_TEST_SERVER_URL=https://tastebuds.daniticau.com pytest tests/test_connectors.py
+```
+score = quality x confidence x freshness x (1 + personal fit)
 ```
 
-Against production this is safe: every write is a dry run, except the one full conversation, which cleans up after itself and only runs when `TASTEBUDS_DATABASE_URL` is set.
+- **Quality** is the share of good opinions, so one rave doesn't beat nine raves and one complaint.
+- **Confidence** gives a small boost to places with more opinions.
+- **Freshness** makes old praise count less, but never below 70%.
+- **Personal fit** covers your friends, people with similar taste, cuisines you like or avoid, diet, occasion, vibe, neighborhood, price, and distance.
 
-## Friends and closeness
+Each person gets one opinion per place, and a place you disliked never comes back. The ranking lives in [ranking.py](src/tastebuds/ranking.py).
 
-The assistant sees who the person messages most: Instagram and WhatsApp on Muse, iMessage on Instinct and Poke. An assistant with no view of messages, such as Grok Bot, asks who they eat out with most. It offers once to link those friends. Each link starts with a one-time invite code that the assistant sends to the friend. The assistant then sends a closeness level: 3 for the few people they message most, 2 for often, 1 for now and then. A level 3 friend's opinion weighs four times a level 1 friend's.
+## Privacy
 
-The server stores two tokens, a level, and each side's choice to share. It never sees names, numbers, handles, or message counts. Tastebuds does not match contacts by hashed phone numbers, because such hashes are easy to reverse.
+- The only thing tied to you is a random `taste_id`.
+- Personal details get stripped from comments twice, once by the assistant and once by the server.
+- Friends see your places only if you share them. Group circles only show counts.
+- `delete_taste_profile` deletes your profile, friend links, and circles. Your past opinions stay in the totals, but nothing links them to you.
 
-**Friends you can see.** Two linked friends each see which places the other liked, the dishes they named, and their short comment. A search result lists those friends by `friend_ref`. The person's own assistant turns the code into a name from its notes, so the server never learns who anyone is. Each side can switch sharing off for one friend, or end the link. A friend who does not share only counts in anonymous totals, and only once the person has two or more friends.
+## Running it locally
 
-**The nudge bar.** `get_friend_finds` runs in the background about once a week. It is worth a message only when two friends loved a place, or one of the closest friends did. A person gets at most one nudge in six days, and a find that was told once never comes back.
-
-## Quick decisions with Jev
-
-[Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) is a System One model from TypeSafe AI. It answers typed questions in about 100 ms and writes no text. Tastebuds asks it where a fixed rule is too blunt:
-
-| Decision | Without Jev | With Jev |
-|---|---|---|
-| Same restaurant? | Trigram similarity above 0.6 merges, then a short-form rule: "Nonna Pia" finds "Nonna Pia Trattoria" when only one place fits. "Pho Hoa" and "Pho Hoa Binh" (0.75) still merge. | Jev decides for name matches between 0.25 and 0.85. |
-| Cuisine of a new place with no tags | Words in the name only | Jev picks from the cuisine list, using the name and the dishes mentioned |
-| Comment identifies a private person? | Regex scrub for emails, phones, links, handles | Jev flags names and the comment is dropped. Off by default. |
-
-Set `TASTEBUDS_TYPESAFE_API_KEY` to turn it on. With no key, a slow answer, or an error, the fixed rule applies, so Jev can never stop a request. Check the live connection with:
-
-```bash
-python -m scripts.check_jev
-```
-
-The comment check sends comment text to TypeSafe, so it has its own switch: `TASTEBUDS_JEV_CHECK_COMMENTS=true`. Read their data policy first.
-
-## Setup
-
-Prerequisites: Python 3.12+, [uv](https://docs.astral.sh/uv/), and PostgreSQL with the `pg_trgm` extension. Production uses [Neon](https://neon.com/).
+You need Python 3.12+, [uv](https://docs.astral.sh/uv/), and Postgres with `pg_trgm`. I use [Neon](https://neon.com/) in production.
 
 ```bash
 uv sync --extra dev
-```
-
-```bash
-cp .env.example .env
-```
-
-Put your connection string in `TASTEBUDS_DATABASE_URL`. Neon requires SSL, so keep the query parameters Neon gives you.
-
-```bash
+cp .env.example .env    # set TASTEBUDS_DATABASE_URL
 python -m tastebuds.db.migrate
-```
-
-```bash
 uvicorn tastebuds.main:app --reload
 ```
 
-Optional seed data for San Diego:
+`python -m scripts.seed` adds some San Diego places to start with.
 
-```bash
-python -m scripts.seed
-```
+The server exposes MCP at `/mcp`, a REST version of the same tools at `/api/v1/<tool_name>`, and setup docs for agents at `/llms.txt` and `/openapi.json`.
 
-## Test
+## Tests
 
 ```bash
 pytest
 ```
 
-Integration tests skip when `TASTEBUDS_DATABASE_URL` is not set. For a full local run, use a throwaway Postgres:
+The integration tests skip unless `TASTEBUDS_DATABASE_URL` is set. A throwaway Postgres works:
 
 ```bash
 docker run -d --name tastebuds-dev-pg -e POSTGRES_PASSWORD=tastebuds -e POSTGRES_DB=tastebuds -p 127.0.0.1:55432:5432 postgres:16-alpine
+export TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/tastebuds
+python -m tastebuds.db.migrate
+pytest
 ```
 
-```bash
-TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/tastebuds python -m tastebuds.db.migrate
-```
+`tests/test_connectors.py` replays how each assistant actually connects. Point it at a live server with `TASTEBUDS_TEST_SERVER_URL`.
 
-```bash
-TASTEBUDS_DATABASE_URL=postgresql://postgres:tastebuds@127.0.0.1:55432/tastebuds pytest
-```
+## Optional: Jev
 
-## Deploy
+If you set `TASTEBUDS_TYPESAFE_API_KEY`, Tastebuds asks [Jev](https://typesafe.ai/blog/introducing-system-one-models-and-jev) for a few quick calls, like whether two place names are the same restaurant. Without a key, or if Jev is slow, it falls back to simple rules. Run `python -m scripts.check_jev` to test the connection.
 
-Configured for [Railway](https://railway.com/) through [railway.json](railway.json) and the [Dockerfile](Dockerfile).
+## Deploying
 
-1. Create a Neon project and copy the connection string.
-2. In Railway, create a service from this repo.
-3. Set `TASTEBUDS_DATABASE_URL` to the Neon connection string.
-4. Set `TASTEBUDS_PUBLIC_BASE_URL` when the origin differs from the default, `https://tastebuds.daniticau.com`. The landing page and `/llms.txt` print it.
-5. Add the custom domain `tastebuds.daniticau.com` to the service. Railway shows a CNAME target. Add that record where the DNS for `daniticau.com` lives, which is Vercel.
-
-Railway runs `python -m tastebuds.db.migrate` before each deploy, so pending migrations apply on their own. The Docker image installs exactly what `uv.lock` pins, so production runs the versions the tests ran.
-
-Production addresses, once the service runs at `tastebuds.daniticau.com`:
-
-- Landing page: `https://tastebuds.daniticau.com/`
-- MCP: `https://tastebuds.daniticau.com/mcp`
-- Health: `https://tastebuds.daniticau.com/health`
-
-## Privacy
-
-- The only key for a person is a random `taste_id`. No names, phone numbers, emails, or messages.
-- The assistant strips personal details from comments. The server scrubs emails, phone numbers, links, and handles again.
-- Friend links hold two tokens, a closeness level from 1 to 3, and each side's choice to share. No names, numbers, or message counts.
-- A linked friend sees which places you liked only if you chose to share. Circles show counts only, and stay silent under three members.
-- With Jev on, place names, city, and dish names go to TypeSafe for matching. Comments go only when the comment check is on.
-- `delete_taste_profile` removes the profile, friend links, circle memberships, and follow-ups. Past opinions stay in the totals with no link to anyone.
-
-See [CLAUDE.md](CLAUDE.md) for architecture notes.
+It deploys to [Railway](https://railway.com/) from the [Dockerfile](Dockerfile), and Railway runs migrations before each deploy. Set `TASTEBUDS_DATABASE_URL`, then point a custom domain at the service.

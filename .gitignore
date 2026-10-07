@@ -14,3 +14,7 @@ supabase/
 node_modules/
 poke-recipe-brief.txt
 AGENTS.md
+
+# Agent files, kept local
+VISION.md
+CLAUDE.md
