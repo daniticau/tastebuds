@@ -4,7 +4,7 @@ Good food recs from personal agents.
 
 You text your AI assistant about food like you normally would. Tastebuds runs in the background: it remembers how you eat, learns from every meal you mention, and ranks places for you using what your friends and people with similar taste liked. There are no reviews, no ratings, and no app.
 
-Live at [tastebuds.daniticau.com](https://tastebuds.daniticau.com). It works with Muse, Instinct, Grok Bot, Poke, or any MCP client.
+It works with Muse, Instinct, Grok Bot, Poke, or any MCP client.
 
 ## How it works
 
